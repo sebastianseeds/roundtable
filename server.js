@@ -1,0 +1,421 @@
+require('dotenv').config();
+const express = require('express');
+const http = require('http');
+const socketIO = require('socket.io');
+const path = require('path');
+const session = require('express-session');
+const { initDatabase, User, Game, CharacterSheet } = require('./database');
+const { generateToken, authenticateToken, requireRole, socketAuth } = require('./auth');
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIO(server, {
+  maxHttpBufferSize: 10 * 1024 * 1024, // 10MB to allow for larger map images
+  pingTimeout: 60000
+});
+
+app.use(express.static('public'));
+app.use(express.json());
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  }
+}));
+
+app.post('/api/register', async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'All fields required' });
+    }
+    
+    const user = await User.create(username, email, password);
+    const token = generateToken(user);
+    
+    req.session.token = token;
+    res.json({ user, token });
+  } catch (err) {
+    if (err.message.includes('UNIQUE')) {
+      res.status(400).json({ error: 'Username or email already exists' });
+    } else {
+      res.status(500).json({ error: 'Registration failed' });
+    }
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    const user = await User.authenticate(username, password);
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    const token = generateToken(user);
+    req.session.token = token;
+    res.json({ user, token });
+  } catch (err) {
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.post('/api/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ message: 'Logged out successfully' });
+});
+
+app.get('/api/user', authenticateToken, (req, res) => {
+  res.json({ user: req.user });
+});
+
+app.get('/api/games', authenticateToken, async (req, res) => {
+  try {
+    const games = await Game.findByUser(req.user.id);
+    res.json({ games });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch games' });
+  }
+});
+
+app.post('/api/games', authenticateToken, async (req, res) => {
+  try {
+    const { name, description, settings } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Game name required' });
+    }
+    
+    const game = await Game.create(name, description, req.user.id, settings);
+    res.json({ game });
+  } catch (err) {
+    console.error('Create game error:', err);
+    res.status(500).json({ error: 'Failed to create game' });
+  }
+});
+
+app.get('/api/games/:gameId', authenticateToken, async (req, res) => {
+  try {
+    const game = await Game.findById(req.params.gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+    
+    const userRole = await Game.getUserRole(req.params.gameId, req.user.id);
+    if (!userRole) {
+      return res.status(403).json({ error: 'Not authorized to view this game' });
+    }
+    
+    const participants = await Game.getParticipants(req.params.gameId);
+    const state = await Game.getState(req.params.gameId);
+    
+    res.json({ game, participants, state, userRole });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch game' });
+  }
+});
+
+app.post('/api/games/:gameId/join', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    
+    const existing = await Game.getUserRole(gameId, req.user.id);
+    if (existing) {
+      return res.status(400).json({ error: 'Already in this game' });
+    }
+    
+    await Game.addParticipant(gameId, req.user.id, 'knight');
+    res.json({ message: 'Joined game successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to join game' });
+  }
+});
+
+app.post('/api/games/:gameId/participants/:userId/role', 
+  authenticateToken, 
+  requireRole('king'), 
+  async (req, res) => {
+  try {
+    const { gameId, userId } = req.params;
+    const { role } = req.body;
+    
+    if (!['king', 'knight'].includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+    
+    await Game.updateParticipantRole(gameId, userId, role);
+    res.json({ message: 'Role updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update role' });
+  }
+});
+
+app.get('/api/games/:gameId/characters', authenticateToken, async (req, res) => {
+  try {
+    const characters = await CharacterSheet.findByUserAndGame(req.user.id, req.params.gameId);
+    res.json({ characters });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch characters' });
+  }
+});
+
+app.post('/api/games/:gameId/characters', authenticateToken, async (req, res) => {
+  try {
+    const character = await CharacterSheet.create(req.user.id, req.params.gameId, req.body);
+    res.json({ character });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create character' });
+  }
+});
+
+app.put('/api/characters/:characterId', authenticateToken, async (req, res) => {
+  try {
+    const character = await CharacterSheet.update(req.params.characterId, req.body);
+    res.json({ character });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update character' });
+  }
+});
+
+app.put('/api/games/:gameId/settings', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const game = await Game.findById(gameId);
+    
+    if (!game || game.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the campaign owner can update settings' });
+    }
+    
+    await Game.updateSettings(gameId, req.user.id, req.body);
+    res.json({ message: 'Settings updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+app.post('/api/games/:gameId/request-deletion', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const game = await Game.findById(gameId);
+    
+    if (!game || game.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the campaign owner can request deletion' });
+    }
+    
+    await Game.requestDeletion(gameId, req.user.id);
+    res.json({ message: 'Deletion requested. You have 7 days to cancel or confirm.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to request deletion' });
+  }
+});
+
+app.post('/api/games/:gameId/cancel-deletion', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const game = await Game.findById(gameId);
+    
+    if (!game || game.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the campaign owner can cancel deletion' });
+    }
+    
+    await Game.cancelDeletion(gameId, req.user.id);
+    res.json({ message: 'Deletion request cancelled' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to cancel deletion' });
+  }
+});
+
+app.delete('/api/games/:gameId/confirm-deletion', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { confirmationText } = req.body;
+    
+    if (confirmationText !== 'DELETE MY CAMPAIGN PERMANENTLY') {
+      return res.status(400).json({ error: 'Confirmation text does not match' });
+    }
+    
+    const game = await Game.findById(gameId);
+    
+    if (!game || game.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the campaign owner can delete the campaign' });
+    }
+    
+    const deleted = await Game.permanentDelete(gameId, req.user.id);
+    
+    if (deleted) {
+      res.json({ message: 'Campaign permanently deleted' });
+    } else {
+      res.status(400).json({ error: 'Campaign deletion failed. Make sure deletion was requested first.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete campaign' });
+  }
+});
+
+app.delete('/api/games/:gameId/dev-delete', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    
+    if (!req.user.is_dev) {
+      return res.status(403).json({ error: 'Dev access required' });
+    }
+    
+    const game = await Game.findById(gameId);
+    
+    if (!game || game.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the campaign owner can delete the campaign' });
+    }
+    
+    const deleted = await Game.devDelete(gameId, req.user.id);
+    
+    if (deleted) {
+      res.json({ message: 'Campaign instantly deleted (dev mode)' });
+    } else {
+      res.status(400).json({ error: 'Campaign deletion failed' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete campaign' });
+  }
+});
+
+io.use(socketAuth);
+
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.user.username);
+  
+  // Debug: Log all events received by this socket
+  const originalOn = socket.on.bind(socket);
+  socket.on = function(event, handler) {
+    if (event !== 'disconnect' && event !== 'disconnecting') {
+      const wrappedHandler = function(...args) {
+        console.log(`🎯 Socket event received: '${event}' from ${socket.user?.username}`);
+        return handler.apply(this, args);
+      };
+      return originalOn(event, wrappedHandler);
+    }
+    return originalOn(event, handler);
+  };
+
+  socket.on('join-game', async (gameId) => {
+    const userRole = await Game.getUserRole(gameId, socket.user.id);
+    
+    if (!userRole) {
+      socket.emit('error', 'Not authorized for this game');
+      return;
+    }
+    
+    socket.join(gameId);
+    socket.gameId = gameId;
+    socket.userRole = userRole;
+    
+    await Game.updateLastPlayed(gameId);
+    
+    const state = await Game.getState(gameId);
+    console.log(`📤 Sending game-state to ${socket.user.username}:`, {
+      gameId: gameId,
+      hasMapImage: !!state?.map_image,
+      mapImageLength: state?.map_image?.length || 0,
+      tokensCount: state?.tokens?.length || 0,
+      mapWidth: state?.map_width,
+      mapHeight: state?.map_height
+    });
+    
+    socket.emit('game-state', state);
+    
+    socket.to(gameId).emit('user-joined', {
+      username: socket.user.username,
+      role: userRole
+    });
+    
+    console.log(`${socket.user.username} joined game ${gameId} as ${userRole}`);
+  });
+
+  console.log(`🔧 Registering map upload handler for user ${socket.user.username}`);
+  
+  socket.on('update-map', async ({ gameId, mapImage }) => {
+    if (socket.userRole !== 'king') {
+      socket.emit('error', 'Only Kings can update the map');
+      return;
+    }
+    
+    console.log(`Received map update for game ${gameId}, image size: ${mapImage?.length || 0} chars`);
+    
+    try {
+      await Game.updateState(gameId, 'map_image', mapImage);
+      socket.to(gameId).emit('map-updated', mapImage);
+      console.log(`Map successfully updated for game ${gameId}`);
+    } catch (error) {
+      console.error(`Failed to update map for game ${gameId}:`, error);
+      socket.emit('error', 'Failed to save map');
+    }
+  });
+
+  socket.on('update-token', async ({ gameId, token }) => {
+    const state = await Game.getState(gameId);
+    const tokens = state.tokens || [];
+    
+    if (socket.userRole === 'knight' && token.type === 'monster') {
+      socket.emit('error', 'Knights cannot move monster tokens');
+      return;
+    }
+    
+    const existingIndex = tokens.findIndex(t => t.id === token.id);
+    if (existingIndex !== -1) {
+      tokens[existingIndex] = token;
+    } else {
+      tokens.push(token);
+    }
+    
+    await Game.updateState(gameId, 'tokens', tokens);
+    socket.to(gameId).emit('token-updated', token);
+  });
+
+  socket.on('remove-token', async ({ gameId, tokenId }) => {
+    if (socket.userRole !== 'king') {
+      socket.emit('error', 'Only Kings can remove tokens');
+      return;
+    }
+    
+    const state = await Game.getState(gameId);
+    const tokens = (state.tokens || []).filter(t => t.id !== tokenId);
+    
+    await Game.updateState(gameId, 'tokens', tokens);
+    socket.to(gameId).emit('token-removed', tokenId);
+  });
+
+  socket.on('update-map-dimensions', async ({ gameId, mapWidth, mapHeight }) => {
+    if (socket.userRole !== 'king') {
+      socket.emit('error', 'Only Kings can update map dimensions');
+      return;
+    }
+    
+    await Game.updateState(gameId, 'map_width', mapWidth);
+    await Game.updateState(gameId, 'map_height', mapHeight);
+    socket.to(gameId).emit('map-dimensions-updated', { mapWidth, mapHeight });
+  });
+
+  socket.on('disconnect', () => {
+    if (socket.gameId) {
+      socket.to(socket.gameId).emit('user-left', {
+        username: socket.user.username,
+        role: socket.userRole
+      });
+    }
+    console.log('User disconnected:', socket.user.username);
+  });
+});
+
+initDatabase().then(() => {
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error('Failed to initialize database:', err);
+  process.exit(1);
+});

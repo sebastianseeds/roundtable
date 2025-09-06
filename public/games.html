@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Round Table - My Games</title>
+    <link rel="stylesheet" href="auth-styles.css">
+</head>
+<body>
+    <div class="games-container">
+        <header class="games-header">
+            <h1 style="color: #ff6b6b;">Round Table</h1>
+            <div class="user-info">
+                <span>Welcome, <strong id="username"></strong></span>
+                <button class="btn-logout" id="logoutBtn">Logout</button>
+            </div>
+        </header>
+        
+        <div class="games-content">
+            <section class="create-game-section">
+                <h2 class="section-title">Create New Campaign</h2>
+                <div class="create-game-form">
+                    <form id="createGameForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="gameName">Campaign Name</label>
+                                <input type="text" id="gameName" required placeholder="The Lost Mines of Phandelver">
+                            </div>
+                            <div class="form-group">
+                                <label for="gameDescription">Description</label>
+                                <input type="text" id="gameDescription" placeholder="A mysterious adventure awaits...">
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="ruleSystem">Rule System</label>
+                                <select id="ruleSystem">
+                                    <option value="dnd5e">D&D 5th Edition</option>
+                                    <option value="pathfinder2e">Pathfinder 2e</option>
+                                    <option value="dnd35">D&D 3.5</option>
+                                    <option value="callofcthulhu">Call of Cthulhu</option>
+                                    <option value="shadowrun">Shadowrun</option>
+                                    <option value="custom">Custom/Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="gridType">Grid Type</label>
+                                <select id="gridType">
+                                    <option value="square">Square Grid</option>
+                                    <option value="hexagon">Hexagon Grid</option>
+                                    <option value="continuous">Gridless/Continuous</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="defaultGridSize">Default Grid Size</label>
+                                <select id="defaultGridSize">
+                                    <option value="25">Small (25px)</option>
+                                    <option value="50" selected>Medium (50px)</option>
+                                    <option value="75">Large (75px)</option>
+                                    <option value="100">Extra Large (100px)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="characterSheetTemplate">Character Sheet</label>
+                                <select id="characterSheetTemplate">
+                                    <option value="dnd5e">D&D 5e Official</option>
+                                    <option value="dnd5e_simplified">D&D 5e Simplified</option>
+                                    <option value="pathfinder2e">Pathfinder 2e</option>
+                                    <option value="generic">Generic RPG</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>
+                                    <input type="checkbox" id="visionEnabled"> Enable Dynamic Lighting
+                                </label>
+                                <small>Players can only see areas their tokens can see</small>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="btn-create">Create Campaign</button>
+                    </form>
+                </div>
+            </section>
+            
+            <section class="my-games-section">
+                <h2 class="section-title">Your Campaigns</h2>
+                <div class="games-grid" id="gamesGrid">
+                </div>
+            </section>
+            
+            <section class="join-game-section" style="margin-top: 3rem;">
+                <h2 class="section-title">Join Campaign</h2>
+                <div class="create-game-form">
+                    <form id="joinGameForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="gameCode">Campaign Code</label>
+                                <input type="text" id="gameCode" required placeholder="Enter campaign code from DM">
+                            </div>
+                            <button type="submit" class="btn-create">Join Campaign</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal-overlay">
+        <div class="modal">
+            <h3>⚠️ Delete Campaign Permanently</h3>
+            <div class="warning-text">
+                <strong>WARNING:</strong> This action cannot be undone. All game data, maps, tokens, and character sheets will be permanently deleted.
+            </div>
+            <div class="form-group">
+                <label>To confirm deletion, type exactly: <strong>DELETE MY CAMPAIGN PERMANENTLY</strong></label>
+                <input type="text" id="deleteConfirmation" class="confirmation-input" placeholder="Type the confirmation text...">
+            </div>
+            <div class="btn-row">
+                <button id="cancelDelete" class="btn-manage">Cancel</button>
+                <button id="confirmDelete" class="btn-danger">Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal">
+            <h3>⚙️ Campaign Settings</h3>
+            <form id="settingsForm">
+                <div class="form-group">
+                    <label for="settingsRuleSystem">Rule System</label>
+                    <select id="settingsRuleSystem">
+                        <option value="dnd5e">D&D 5th Edition</option>
+                        <option value="pathfinder2e">Pathfinder 2e</option>
+                        <option value="dnd35">D&D 3.5</option>
+                        <option value="callofcthulhu">Call of Cthulhu</option>
+                        <option value="shadowrun">Shadowrun</option>
+                        <option value="custom">Custom/Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="settingsGridType">Grid Type</label>
+                    <select id="settingsGridType">
+                        <option value="square">Square Grid</option>
+                        <option value="hexagon">Hexagon Grid</option>
+                        <option value="continuous">Gridless/Continuous</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="settingsGridSize">Default Grid Size</label>
+                    <select id="settingsGridSize">
+                        <option value="25">Small (25px)</option>
+                        <option value="50">Medium (50px)</option>
+                        <option value="75">Large (75px)</option>
+                        <option value="100">Extra Large (100px)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="settingsCharacterSheet">Character Sheet</label>
+                    <select id="settingsCharacterSheet">
+                        <option value="dnd5e">D&D 5e Official</option>
+                        <option value="dnd5e_simplified">D&D 5e Simplified</option>
+                        <option value="pathfinder2e">Pathfinder 2e</option>
+                        <option value="generic">Generic RPG</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="settingsVisionEnabled"> Enable Dynamic Lighting
+                    </label>
+                </div>
+                <div class="btn-row">
+                    <button type="button" id="cancelSettings" class="btn-manage">Cancel</button>
+                    <button type="submit" class="btn-create">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="games.js"></script>
+</body>
+</html>

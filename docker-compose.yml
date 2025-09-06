@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: round-table
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - round-table-network
+    volumes:
+      # Mount for persistent map uploads (optional)
+      - ./uploads:/app/public/uploads
+      # Mount for logs (optional)
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add nginx for production deployment
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: round-table-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - app
+  #   networks:
+  #     - round-table-network
+  #   restart: unless-stopped
+
+  # Optional: Add Redis for session management (future feature)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: round-table-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   networks:
+  #     - round-table-network
+  #   restart: unless-stopped
+  #   command: redis-server --appendonly yes
+
+networks:
+  round-table-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

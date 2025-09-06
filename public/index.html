@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Round Table - D&D Online Platform</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="authCheck" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #ff6b6b; font-size: 1.5rem;">Loading...</div>
+    <div id="app" style="display: none;">
+        <header>
+            <h1>Round Table D&D</h1>
+            <div class="room-info">
+                <span class="game-name" id="gameName"></span>
+                <span class="user-role" id="userRole"></span>
+                <div class="king-only" id="joinCodeSection" style="display: flex; align-items: center; gap: 10px; margin: 0 10px;">
+                    <span style="font-size: 0.9rem; color: #b0b0b0;">Join Code:</span>
+                    <code id="joinCode" style="background: rgba(74, 124, 89, 0.2); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; color: #4ecdc4; cursor: pointer;" title="Click to copy">-</code>
+                </div>
+                <span id="connectionStatus" class="status">Disconnected</span>
+                <button id="backToGames" class="btn-secondary">Back to Games</button>
+            </div>
+        </header>
+        
+        <div class="container">
+            <aside class="controls">
+                <h3 class="king-only">Map Controls</h3>
+                <div class="control-group king-only">
+                    <label for="mapUpload">Upload Map:</label>
+                    <input type="file" id="mapUpload" accept="image/*">
+                </div>
+                
+                <div class="control-group king-only">
+                    <label for="gridToggle">
+                        <input type="checkbox" id="gridToggle" checked> Show Grid
+                    </label>
+                </div>
+                
+                <div class="control-group king-only">
+                    <label>Map Dimensions:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <span style="font-size: 0.9em; color: #b0b0b0;">W:</span>
+                        <input type="number" id="mapWidth" min="50" max="2000" value="500" step="50" style="flex: 1;" placeholder="Width">
+                        <span style="font-size: 0.9em; color: #b0b0b0;">ft × H:</span>
+                        <input type="number" id="mapHeight" min="50" max="2000" value="500" step="50" style="flex: 1;" placeholder="Height">
+                        <span style="font-size: 0.9em; color: #b0b0b0;">ft</span>
+                    </div>
+                </div>
+                
+                <h3>Tokens</h3>
+                <div class="control-group king-only">
+                    <button id="addPlayerToken">Add Player Token</button>
+                    <button id="addMonsterToken">Add Monster Token</button>
+                    <button id="clearTokens">Clear All Tokens</button>
+                </div>
+                
+                <div class="token-list" id="tokenList"></div>
+                
+                <h3>Players</h3>
+                <div class="players-list" id="playersList"></div>
+            </aside>
+            
+            <main class="map-container">
+                <canvas id="mapCanvas"></canvas>
+            </main>
+        </div>
+    </div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

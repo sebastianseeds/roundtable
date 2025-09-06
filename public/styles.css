@@ -1,0 +1,429 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+header {
+    background: #2a2a2a;
+    padding: 1rem;
+    border-bottom: 2px solid #3a3a3a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+h1 {
+    color: #ff6b6b;
+    font-size: 1.5rem;
+}
+
+.room-info {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.room-info input {
+    padding: 0.5rem;
+    background: #3a3a3a;
+    border: 1px solid #4a4a4a;
+    color: #e0e0e0;
+    border-radius: 4px;
+}
+
+.room-info button {
+    padding: 0.5rem 1rem;
+    background: #4a7c59;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.room-info button:hover {
+    background: #5a8c69;
+}
+
+.status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.status.connected {
+    background: #4a7c59;
+    color: white;
+}
+
+.status.disconnected {
+    background: #c9302c;
+    color: white;
+}
+
+.game-name {
+    font-weight: 600;
+    color: #ff6b6b;
+    margin-right: 1rem;
+}
+
+.user-role {
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-right: 1rem;
+}
+
+.user-role.king, .user-role.monarch {
+    background: #8b4513;
+    color: #ffd700;
+}
+
+.user-role.knight {
+    background: #4a5568;
+    color: #cbd5e0;
+}
+
+.btn-secondary {
+    padding: 0.5rem 1rem;
+    background: #5a5a5a;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.btn-secondary:hover {
+    background: #6a6a6a;
+}
+
+.king-only {
+    position: relative;
+}
+
+.knight .king-only {
+    display: none;
+}
+
+.token-item {
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 8px;
+}
+
+.token-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.token-type-badge {
+    font-size: 1.2em;
+    width: 24px;
+    text-align: center;
+}
+
+.token-type-badge.player {
+    color: #4ecdc4;
+}
+
+.token-type-badge.monster {
+    color: #ff6b6b;
+}
+
+.token-info {
+    flex: 1;
+}
+
+.token-name-input {
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 3px;
+    color: #e0e0e0;
+    padding: 4px 6px;
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.token-name {
+    color: #e0e0e0;
+    font-weight: 500;
+}
+
+.token-owner {
+    display: block;
+    color: #808080;
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+
+.token-owner.game-owner {
+    color: #ffd700;
+    font-weight: 500;
+}
+
+.token-owner-select {
+    background: #1a1a1a;
+    border: 1px solid #3a3a3a;
+    border-radius: 3px;
+    color: #e0e0e0;
+    padding: 2px 4px;
+    font-size: 0.8rem;
+    margin-top: 2px;
+    width: 100%;
+}
+
+.token-owner-select:focus {
+    outline: none;
+    border-color: #4a7c59;
+}
+
+.token-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.token-color-input {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.token-color-display {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 1px solid #3a3a3a;
+}
+
+.btn-remove {
+    background: transparent;
+    border: 1px solid #c9302c;
+    color: #ff6b6b;
+    border-radius: 3px;
+    padding: 4px 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.btn-remove:hover {
+    background: #c9302c;
+    color: white;
+}
+
+.players-list {
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin-bottom: 1.5rem;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.player-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    margin-bottom: 0.25rem;
+    background: #3a3a3a;
+    border-radius: 4px;
+}
+
+.player-item .player-name {
+    font-weight: 500;
+}
+
+.player-item .player-role {
+    font-size: 0.85rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+}
+
+.player-item .player-role.king,
+.player-item .player-role.monarche {
+    background: #8b4513;
+    color: #ffd700;
+}
+
+.player-item .player-role.knight {
+    background: #4a5568;
+    color: #cbd5e0;
+}
+
+.zoom-controls {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.zoom-controls button {
+    padding: 0.5rem;
+    background: #3a3a3a;
+    color: #e0e0e0;
+    border: 1px solid #4a4a4a;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+    min-width: 40px;
+}
+
+.zoom-controls button:hover {
+    background: #4a4a4a;
+}
+
+.container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+.controls {
+    width: 300px;
+    background: #2a2a2a;
+    padding: 1rem;
+    border-right: 2px solid #3a3a3a;
+    overflow-y: auto;
+}
+
+.controls h3 {
+    color: #ff6b6b;
+    margin-bottom: 1rem;
+    margin-top: 1.5rem;
+}
+
+.controls h3:first-child {
+    margin-top: 0;
+}
+
+.control-group {
+    margin-bottom: 1rem;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #b0b0b0;
+}
+
+.control-group input[type="file"],
+.control-group input[type="range"] {
+    width: 100%;
+}
+
+.control-group input[type="checkbox"] {
+    margin-right: 0.5rem;
+}
+
+.control-group button {
+    width: 100%;
+    padding: 0.5rem;
+    background: #3a3a3a;
+    color: #e0e0e0;
+    border: 1px solid #4a4a4a;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.control-group button:hover {
+    background: #4a4a4a;
+}
+
+.tool-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+}
+
+.tool-btn {
+    padding: 0.5rem;
+    background: #3a3a3a;
+    color: #e0e0e0;
+    border: 1px solid #4a4a4a;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.tool-btn:hover {
+    background: #4a4a4a;
+}
+
+.tool-btn.active {
+    background: #4a7c59;
+    border-color: #5a8c69;
+    color: white;
+}
+
+.token-list {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin-top: 1rem;
+}
+
+.token-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.25rem;
+    margin-bottom: 0.25rem;
+    background: #3a3a3a;
+    border-radius: 4px;
+}
+
+.token-item button {
+    padding: 0.25rem 0.5rem;
+    background: #c9302c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.map-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #1a1a1a;
+    overflow: hidden;
+    position: relative;
+}
+
+#mapCanvas {
+    background: #2a2a2a;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    cursor: crosshair;
+    max-width: 100%;
+    max-height: 100%;
+}
