@@ -29,7 +29,7 @@ body {
 }
 
 .auth-title {
-    color: #ff6b6b;
+    color: #ffffff;
     text-align: center;
     font-size: 2.5rem;
     margin-bottom: 0.5rem;
@@ -61,13 +61,13 @@ body {
 }
 
 .tab-btn:hover {
-    background: rgba(74, 124, 89, 0.2);
+    background: rgba(74, 74, 74, 0.2);
 }
 
 .tab-btn.active {
-    background: #4a7c59;
+    background: #4a4a4a;
     color: white;
-    border-color: #4a7c59;
+    border-color: #4a4a4a;
 }
 
 .auth-form {
@@ -102,13 +102,13 @@ body {
 
 .form-group input:focus {
     outline: none;
-    border-color: #4a7c59;
+    border-color: #4a4a4a;
 }
 
 .btn-primary {
     width: 100%;
     padding: 1rem;
-    background: linear-gradient(135deg, #4a7c59 0%, #5a8c69 100%);
+    background: linear-gradient(135deg, #4a4a4a 0%, #5a5a5a 100%);
     color: white;
     border: none;
     border-radius: 8px;
@@ -122,7 +122,7 @@ body {
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(74, 124, 89, 0.3);
+    box-shadow: 0 10px 20px rgba(74, 74, 74, 0.3);
 }
 
 .btn-primary:active {
@@ -184,7 +184,7 @@ body {
 }
 
 .section-title {
-    color: #ff6b6b;
+    color: #ffffff;
     margin-bottom: 1.5rem;
     font-size: 1.8rem;
 }
@@ -219,7 +219,7 @@ body {
 
 .form-group select:focus {
     outline: none;
-    border-color: #4a7c59;
+    border-color: #4a4a4a;
 }
 
 .form-group small {
@@ -231,7 +231,7 @@ body {
 
 .btn-create {
     padding: 0.75rem 2rem;
-    background: #4a7c59;
+    background: #4a4a4a;
     color: white;
     border: none;
     border-radius: 4px;
@@ -257,11 +257,11 @@ body {
 
 .game-card:hover {
     transform: translateY(-4px);
-    border-color: #4a7c59;
+    border-color: #4a4a4a;
 }
 
 .game-card h3 {
-    color: #ff6b6b;
+    color: #ffffff;
     margin-bottom: 0.5rem;
 }
 
@@ -289,13 +289,13 @@ body {
 
 .role-badge.king,
 .role-badge.monarche {
-    background: #8b4513;
-    color: #ffd700;
+    background: #4a4a4a;
+    color: #ffffff;
 }
 
 .role-badge.knight {
-    background: #4a5568;
-    color: #cbd5e0;
+    background: #3a3a3a;
+    color: #cccccc;
 }
 
 .last-played {
@@ -312,7 +312,7 @@ body {
 
 .btn-manage {
     padding: 0.5rem 1rem;
-    background: #4a7c59;
+    background: #4a4a4a;
     color: white;
     border: none;
     border-radius: 4px;
@@ -388,7 +388,7 @@ body {
 }
 
 .modal h3 {
-    color: #ff6b6b;
+    color: #ffffff;
     margin-bottom: 1rem;
 }
 

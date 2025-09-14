@@ -6,8 +6,8 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-    background: #1a1a1a;
-    color: #e0e0e0;
+    background: var(--background-color, #1a1a1a);
+    color: var(--text-color, #e0e0e0);
     height: 100vh;
     overflow: hidden;
 }
@@ -19,16 +19,16 @@ body {
 }
 
 header {
-    background: #2a2a2a;
+    background: var(--surface-color, #2a2a2a);
     padding: 1rem;
-    border-bottom: 2px solid #3a3a3a;
+    border-bottom: 2px solid var(--border-color, #3a3a3a);
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 h1 {
-    color: #ff6b6b;
+    color: var(--primary-color, #ff6b6b);
     font-size: 1.5rem;
 }
 
@@ -40,15 +40,15 @@ h1 {
 
 .room-info input {
     padding: 0.5rem;
-    background: #3a3a3a;
-    border: 1px solid #4a4a4a;
-    color: #e0e0e0;
+    background: var(--surface-darker, #3a3a3a);
+    border: 1px solid var(--border-color, #4a4a4a);
+    color: var(--text-color, #e0e0e0);
     border-radius: 4px;
 }
 
 .room-info button {
     padding: 0.5rem 1rem;
-    background: #4a7c59;
+    background: var(--accent-color, #4a7c59);
     color: white;
     border: none;
     border-radius: 4px;
@@ -57,7 +57,7 @@ h1 {
 }
 
 .room-info button:hover {
-    background: #5a8c69;
+    background: var(--accent-hover, #5a8c69);
 }
 
 .status {
@@ -79,7 +79,7 @@ h1 {
 
 .game-name {
     font-weight: 600;
-    color: #ff6b6b;
+    color: var(--primary-color, #ff6b6b);
     margin-right: 1rem;
 }
 
@@ -92,13 +92,13 @@ h1 {
 }
 
 .user-role.king, .user-role.monarch {
-    background: #8b4513;
-    color: #ffd700;
+    background: var(--accent-color, #8b4513);
+    color: var(--primary-color, #ffd700);
 }
 
 .user-role.knight {
-    background: #4a5568;
-    color: #cbd5e0;
+    background: var(--surface-darker, #4a5568);
+    color: var(--text-color, #cbd5e0);
 }
 
 .btn-secondary {
@@ -167,7 +167,7 @@ h1 {
 }
 
 .token-type-badge.player {
-    color: #4ecdc4;
+    color: var(--secondary-color, #4ecdc4);
 }
 
 .token-type-badge.monster {
@@ -423,20 +423,22 @@ h1 {
 
 .controls {
     width: 300px;
-    background: #2a2a2a;
-    border-right: 2px solid #3a3a3a;
+    background: var(--surface-color, #2a2a2a);
+    border-right: 2px solid var(--border-color, #3a3a3a);
     position: relative;
     display: flex;
+    color: var(--text-color, #e0e0e0);
 }
 
 .controls .panel-content {
     flex: 1;
     padding: 1rem;
+    color: var(--text-color, #e0e0e0);
     overflow-y: auto;
 }
 
 .controls h3 {
-    color: #ff6b6b;
+    color: var(--primary-color, #ff6b6b);
     margin-bottom: 1rem;
     margin-top: 1.5rem;
 }
@@ -452,6 +454,7 @@ h1 {
 .control-group label {
     display: block;
     margin-bottom: 0.5rem;
+    color: var(--text-color, #e0e0e0);
     color: #b0b0b0;
 }
 
@@ -556,7 +559,7 @@ h1 {
     left: 0;
     right: 0;
     background: rgba(42, 42, 42, 0.95);
-    border-top: 2px solid #3a3a3a;
+    border-top: 2px solid var(--border-color, #3a3a3a);
     max-height: 300px;
     display: flex;
     flex-direction: column;
@@ -609,6 +612,7 @@ h1 {
     border-radius: 4px;
     word-wrap: break-word;
     font-size: 0.9rem;
+    color: var(--text-color, #e0e0e0);
 }
 
 .chat-message.public {
@@ -634,6 +638,7 @@ h1 {
 .chat-message .sender {
     font-weight: 600;
     margin-right: 0.5rem;
+    color: var(--primary-color, #ff6b6b);
 }
 
 .chat-message .sender.monarch {
@@ -641,7 +646,7 @@ h1 {
 }
 
 .chat-message .timestamp {
-    color: #808080;
+    color: var(--text-secondary, #808080);
     font-size: 0.75rem;
     margin-left: 0.5rem;
 }
@@ -695,8 +700,8 @@ h1 {
 /* Roll Sidebar */
 .roll-sidebar {
     width: 350px;
-    background: #2a2a2a;
-    border-left: 2px solid #3a3a3a;
+    background: var(--surface-color, #2a2a2a);
+    border-left: 2px solid var(--border-color, #3a3a3a);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -708,11 +713,12 @@ h1 {
     flex-direction: column;
     height: 100%;
     overflow: hidden;
+    color: var(--text-color, #e0e0e0);
 }
 
 .roll-header {
     padding: 1rem;
-    border-bottom: 1px solid #3a3a3a;
+    border-bottom: 1px solid var(--border-color, #3a3a3a);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -782,7 +788,7 @@ h1 {
 
 .roll-character {
     font-weight: 600;
-    color: #4ecdc4;
+    color: var(--secondary-color, #4ecdc4);
     font-size: 0.9rem;
     white-space: nowrap;
     overflow: hidden;
@@ -1096,7 +1102,7 @@ h1 {
 }
 
 .collapsible-header:hover {
-    color: #4ecdc4;
+    color: var(--secondary-color, #4ecdc4);
 }
 
 .collapse-arrow {
@@ -1134,7 +1140,7 @@ h1 {
 }
 
 .section-content::-webkit-scrollbar-thumb {
-    background: #4ecdc4;
+    background: var(--secondary-color, #4ecdc4);
     border-radius: 4px;
 }
 
@@ -1178,7 +1184,7 @@ h1 {
 
 .grail-message-input:focus {
     outline: none;
-    border-color: #4ecdc4;
+    border-color: var(--secondary-color, #4ecdc4);
     box-shadow: 0 0 5px rgba(78, 205, 196, 0.3);
 }
 
@@ -1211,7 +1217,7 @@ h1 {
 
 .character-sheet-section h3 {
     margin: 0 0 1rem 0;
-    color: #4ecdc4;
+    color: var(--secondary-color, #4ecdc4);
     border-bottom: 1px solid #444;
     padding-bottom: 0.5rem;
 }
@@ -1250,7 +1256,7 @@ h1 {
 .character-sheet-field select:focus,
 .character-sheet-field textarea:focus {
     outline: none;
-    border-color: #4ecdc4;
+    border-color: var(--secondary-color, #4ecdc4);
     box-shadow: 0 0 5px rgba(78, 205, 196, 0.3);
 }
 
@@ -1284,7 +1290,7 @@ h1 {
 
 .modifier {
     font-size: 0.85rem;
-    color: #4ecdc4;
+    color: var(--secondary-color, #4ecdc4);
     margin-top: 0.25rem;
 }
 
@@ -1313,8 +1319,8 @@ h1 {
 }
 
 .panel-collapse-btn {
-    background: #3a3a3a;
-    border: 1px solid #4a4a4a;
+    background: var(--surface-darker, #3a3a3a);
+    border: 1px solid var(--border-color, #4a4a4a);
     color: #b0b0b0;
     width: 16px;
     height: 40px;
@@ -1748,4 +1754,206 @@ h1 {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 20px;
     justify-items: center;
+}
+
+/* Join Code Dropdown Styles */
+.join-code-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.join-code-dropdown-content {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2a2a2a;
+    border: 1px solid #4a4a4a;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    min-width: 120px;
+    margin-top: 4px;
+}
+
+.join-code-dropdown-content::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid #4a4a4a;
+}
+
+.join-code-dropdown-content::after {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid #2a2a2a;
+}
+
+#joinCodeLabel {
+    color: var(--primary-color, #ff6b6b) !important;
+}
+
+#joinCodeLabel:hover {
+    color: var(--secondary-color, #ff8a8a) !important;
+    transition: color 0.2s;
+}
+
+#joinCodeDropdown #joinCode:hover {
+    background: var(--surface-darker, rgba(74, 124, 89, 0.3));
+    transition: background 0.2s;
+}
+
+/* UI Settings Modal Styles */
+.ui-settings-section {
+    margin-bottom: 20px;
+}
+
+.color-palette-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 10px;
+}
+
+.color-palette-option {
+    background: var(--surface-darker, #3a3a3a);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.color-palette-option:hover {
+    border-color: var(--secondary-color, #4ecdc4);
+    transform: translateY(-2px);
+}
+
+.color-palette-option.active {
+    border-color: #ff6b6b;
+    background: #4a4a4a;
+}
+
+.palette-name {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-color, #e0e0e0);
+    font-size: 1.1rem;
+}
+
+.palette-description {
+    color: var(--text-secondary, #b0b0b0);
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+.palette-preview {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
+}
+
+.palette-preview .color-swatch {
+    width: 32px;
+    height: 32px;
+}
+
+/* Character Sheet Management Styles */
+.sheet-management {
+    background: var(--surface-darker, #3a3a3a);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color, #4a4a4a);
+}
+
+.sheet-selector {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.sheet-selector label {
+    color: var(--text-color, #e0e0e0);
+    font-weight: 600;
+}
+
+.sheet-selector select {
+    flex: 1;
+    min-width: 200px;
+    padding: 0.5rem;
+    background: var(--surface-color, #2a2a2a);
+    border: 1px solid var(--border-color, #4a4a4a);
+    border-radius: 4px;
+    color: var(--text-color, #e0e0e0);
+}
+
+.sheet-info {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.sheet-info input {
+    flex: 2;
+    min-width: 200px;
+    padding: 0.5rem;
+    background: var(--surface-color, #2a2a2a);
+    border: 1px solid var(--border-color, #4a4a4a);
+    border-radius: 4px;
+    color: var(--text-color, #e0e0e0);
+}
+
+.sheet-info select {
+    flex: 1;
+    min-width: 120px;
+    padding: 0.5rem;
+    background: var(--surface-color, #2a2a2a);
+    border: 1px solid var(--border-color, #4a4a4a);
+    border-radius: 4px;
+    color: var(--text-color, #e0e0e0);
+}
+
+/* Macro Character Link Styles */
+.macro-character-link {
+    margin: 10px 0;
+    padding: 10px;
+    background: var(--surface-darker, #3a3a3a);
+    border-radius: 4px;
+    border: 1px solid var(--border-color, #4a4a4a);
+}
+
+.macro-character-link label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-color, #e0e0e0);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.macro-character-link select {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--surface-color, #2a2a2a);
+    border: 1px solid var(--border-color, #4a4a4a);
+    border-radius: 4px;
+    color: var(--text-color, #e0e0e0);
 }

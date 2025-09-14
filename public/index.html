@@ -18,12 +18,15 @@
                     <input type="text" id="characterNameInput" class="character-name-input" placeholder="Character name" style="display: none;">
                     <span id="characterNameDisplay" class="character-name-display" title="Click to edit"></span>
                 </div>
-                <div id="joinCodeSection" style="display: flex; align-items: center; gap: 10px; margin: 0 10px;">
-                    <span style="font-size: 0.9rem; color: #b0b0b0;">Join Code:</span>
-                    <code id="joinCode" style="background: rgba(74, 124, 89, 0.2); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; color: #4ecdc4; cursor: pointer;" title="Click to copy">-</code>
+                <div id="joinCodeSection" class="join-code-dropdown" style="position: relative; margin: 0 10px;">
+                    <span id="joinCodeLabel" style="font-size: 0.9rem; cursor: pointer; user-select: none;" title="Click to copy join code">Join Code ▼</span>
+                    <div id="joinCodeDropdown" class="join-code-dropdown-content" style="display: none;">
+                        <code id="joinCode" style="background: rgba(74, 124, 89, 0.2); padding: 8px 12px; border-radius: 4px; font-size: 0.85rem; color: #4ecdc4; cursor: pointer; display: block; text-align: center;" title="Click to copy">-</code>
+                    </div>
                 </div>
                 <button id="macrosConfig" class="btn-secondary" title="Configure Macros">⚙️ Macros</button>
                 <button id="characterSheet" class="btn-secondary" title="Character Sheet">📜 Character Sheet</button>
+                <button id="uiSettings" class="btn-secondary" title="UI Settings">🎨 UI Settings</button>
                 <span id="connectionStatus" class="status">Disconnected</span>
                 <button id="backToGames" class="btn-secondary">Back to Games</button>
             </div>
@@ -202,6 +205,12 @@
                         <input type="text" id="macroName" placeholder="Macro Name (e.g., Attack)" maxlength="20">
                         <input type="text" id="macroFormula" placeholder="Roll Formula (e.g., 1d20+5)" maxlength="50">
                         <input type="text" id="macroDescription" placeholder="Description (optional)" maxlength="100">
+                        <div class="macro-character-link king-only" id="macroCharacterLink" style="display: none;">
+                            <label for="macroCharacterSheet">Link to Character Sheet:</label>
+                            <select id="macroCharacterSheet">
+                                <option value="">None (Personal Macro)</option>
+                            </select>
+                        </div>
                         <button onclick="game.addMacro()">Add Macro</button>
                     </div>
                 </div>
@@ -223,9 +232,51 @@
                 <button class="modal-close" onclick="game.closeCharacterSheetModal()">&times;</button>
             </div>
             <div class="modal-body character-sheet-body">
+                <!-- Sheet Management for Monarchs -->
+                <div id="sheetManagement" class="sheet-management king-only" style="display: none;">
+                    <div class="sheet-selector">
+                        <label for="sheetSelect">Character Sheet:</label>
+                        <select id="sheetSelect">
+                            <option value="player">Your Character</option>
+                        </select>
+                        <button id="newSheetBtn" class="btn-secondary">New NPC/Monster</button>
+                        <button id="deleteSheetBtn" class="btn-danger" style="display: none;">Delete Sheet</button>
+                    </div>
+                    <div class="sheet-info" id="sheetInfo" style="display: none;">
+                        <input type="text" id="sheetName" placeholder="NPC/Monster Name" maxlength="50">
+                        <select id="sheetType">
+                            <option value="npc">NPC</option>
+                            <option value="monster">Monster</option>
+                            <option value="boss">Boss</option>
+                        </select>
+                    </div>
+                </div>
+                
                 <!-- Character Sheet will be dynamically loaded here -->
                 <div id="characterSheetContent">
                     Loading character sheet...
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- UI Settings Modal -->
+    <div id="uiSettingsModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>UI Settings</h2>
+                <button class="modal-close" onclick="game.closeUISettingsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="ui-settings-section">
+                    <h3>Color Palette</h3>
+                    <div class="color-palette-grid" id="colorPaletteGrid">
+                        <!-- Color palettes will be populated here -->
+                    </div>
+                    <div class="current-palette" id="currentPalette" style="margin-top: 20px;">
+                        <h4>Current Palette: <span id="currentPaletteName">Default</span></h4>
+                        <div class="palette-preview" id="palettePreview"></div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -79,6 +79,9 @@ class DnDMap {
             // For knights, check if they have the grail after participants load
             this.checkAndLoadGrailModifiers();
         }
+        
+        // Initialize UI settings and load saved palette
+        this.initializeUISettings();
     }
     
     calculateGridSize() {
@@ -143,27 +146,6 @@ class DnDMap {
                     const joinCodeElement = document.getElementById('joinCode');
                     if (joinCodeElement) {
                         joinCodeElement.textContent = this.gameId;
-                        // Add click to copy functionality
-                        joinCodeElement.addEventListener('click', () => {
-                            navigator.clipboard.writeText(this.gameId).then(() => {
-                                const originalText = joinCodeElement.textContent;
-                                joinCodeElement.textContent = 'Copied!';
-                                joinCodeElement.style.color = '#4ecdc4';
-                                setTimeout(() => {
-                                    joinCodeElement.textContent = originalText;
-                                    joinCodeElement.style.color = '#4ecdc4';
-                                }, 1500);
-                            }).catch(() => {
-                                // Fallback for older browsers
-                                const textArea = document.createElement('textarea');
-                                textArea.value = this.gameId;
-                                document.body.appendChild(textArea);
-                                textArea.select();
-                                document.execCommand('copy');
-                                document.body.removeChild(textArea);
-                                alert('Join code copied to clipboard!');
-                            });
-                        });
                     }
                 }
                 
@@ -197,18 +179,10 @@ class DnDMap {
             document.getElementById('joinCodeSection').style.display = 'none';
         } else {
             document.body.classList.add('king');
-            // Show join code for kings and set up click to copy
-            document.getElementById('joinCodeSection').style.display = 'flex';
+            // Show join code for kings
+            document.getElementById('joinCodeSection').style.display = 'block';
             if (this.gameInfo && this.gameInfo.id) {
                 document.getElementById('joinCode').textContent = this.gameInfo.id;
-                document.getElementById('joinCode').addEventListener('click', () => {
-                    navigator.clipboard.writeText(this.gameInfo.id);
-                    const originalText = document.getElementById('joinCode').textContent;
-                    document.getElementById('joinCode').textContent = 'Copied!';
-                    setTimeout(() => {
-                        document.getElementById('joinCode').textContent = originalText;
-                    }, 2000);
-                });
             }
         }
     }
@@ -452,6 +426,9 @@ class DnDMap {
                 characterNameDisplay.style.display = 'block';
             }
         });
+        
+        // Join Code dropdown functionality
+        this.setupJoinCodeDropdown();
         
         // Panel collapse/expand functionality
         this.setupPanelCollapseListeners();
@@ -1790,6 +1767,65 @@ class DnDMap {
         });
     }
     
+    setupJoinCodeDropdown() {
+        const joinCodeLabel = document.getElementById('joinCodeLabel');
+        const joinCodeDropdown = document.getElementById('joinCodeDropdown');
+        const joinCode = document.getElementById('joinCode');
+        
+        if (!joinCodeLabel || !joinCodeDropdown || !joinCode) return;
+        
+        // Toggle dropdown on label click
+        joinCodeLabel.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = joinCodeDropdown.style.display === 'block';
+            joinCodeDropdown.style.display = isVisible ? 'none' : 'block';
+            joinCodeLabel.textContent = isVisible ? 'Join Code ▼' : 'Join Code ▲';
+        });
+        
+        // Copy join code on label click (same functionality)
+        joinCodeLabel.addEventListener('click', async () => {
+            if (this.gameId) {
+                try {
+                    await navigator.clipboard.writeText(this.gameId);
+                    const originalText = joinCodeLabel.textContent;
+                    joinCodeLabel.textContent = 'Copied!';
+                    joinCodeLabel.style.color = '#4ecdc4';
+                    setTimeout(() => {
+                        joinCodeLabel.textContent = originalText;
+                        joinCodeLabel.style.color = '';
+                    }, 1000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+            }
+        });
+        
+        // Copy join code on code element click
+        joinCode.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (this.gameId) {
+                try {
+                    await navigator.clipboard.writeText(this.gameId);
+                    const originalText = joinCode.textContent;
+                    joinCode.textContent = 'Copied!';
+                    setTimeout(() => {
+                        joinCode.textContent = originalText;
+                    }, 1000);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+            }
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!document.getElementById('joinCodeSection').contains(e.target)) {
+                joinCodeDropdown.style.display = 'none';
+                joinCodeLabel.textContent = 'Join Code ▼';
+            }
+        });
+    }
+    
     setupMacroListeners() {
         // Macro configuration button
         document.getElementById('macrosConfig').addEventListener('click', () => {
@@ -1799,6 +1835,11 @@ class DnDMap {
         // Character sheet button
         document.getElementById('characterSheet').addEventListener('click', () => {
             this.openCharacterSheet();
+        });
+        
+        // UI Settings button
+        document.getElementById('uiSettings').addEventListener('click', () => {
+            this.openUISettingsModal();
         });
         
         // Quick rolls button
@@ -1819,7 +1860,41 @@ class DnDMap {
     
     async openMacroModal() {
         await this.loadMacros();
+        
+        // For Monarchs, show character sheet linking options and load NPC sheets
+        if (this.userRole === 'king') {
+            const macroCharacterLink = document.getElementById('macroCharacterLink');
+            macroCharacterLink.style.display = 'block';
+            await this.loadMacroCharacterSheets();
+        }
+        
         document.getElementById('macroModal').style.display = 'flex';
+    }
+    
+    async loadMacroCharacterSheets() {
+        try {
+            const response = await fetch(`/api/games/${this.gameId}/character-sheets`, {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const select = document.getElementById('macroCharacterSheet');
+                select.innerHTML = '<option value="">None (Personal Macro)</option>';
+                
+                if (data.sheets && data.sheets.length > 0) {
+                    data.sheets.forEach(sheet => {
+                        const option = document.createElement('option');
+                        option.value = sheet.id;
+                        const typeIcon = sheet.sheet_type === 'monster' ? '👹' : sheet.sheet_type === 'boss' ? '💀' : '👤';
+                        option.textContent = `${typeIcon} ${sheet.name}`;
+                        select.appendChild(option);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load character sheets for macros:', error);
+        }
     }
     
     closeMacroModal() {
@@ -1828,28 +1903,167 @@ class DnDMap {
         document.getElementById('macroName').value = '';
         document.getElementById('macroFormula').value = '';
         document.getElementById('macroDescription').value = '';
+        
+        // Clear character sheet selection for Monarchs
+        if (this.userRole === 'king') {
+            const characterSheetSelect = document.getElementById('macroCharacterSheet');
+            if (characterSheetSelect) {
+                characterSheetSelect.value = '';
+            }
+        }
     }
     
     // Character Sheet Methods
     async openCharacterSheet() {
         const modal = document.getElementById('characterSheetModal');
         const content = document.getElementById('characterSheetContent');
+        const sheetManagement = document.getElementById('sheetManagement');
         
         modal.style.display = 'block';
         content.innerHTML = 'Loading character sheet...';
         
+        // Show sheet management for Monarchs
+        if (this.userRole === 'king') {
+            sheetManagement.style.display = 'block';
+            await this.loadSheetsList();
+            this.setupSheetManagement();
+        } else {
+            sheetManagement.style.display = 'none';
+        }
+        
+        // Load the currently selected sheet (default to player sheet)
+        const selectedSheet = this.userRole === 'king' ? document.getElementById('sheetSelect').value : 'player';
+        await this.loadCharacterSheet(selectedSheet);
+    }
+    
+    async loadSheetsList() {
         try {
-            // Load character sheet data
-            const response = await fetch(`/api/games/${this.gameId}/character-sheet`, {
+            const response = await fetch(`/api/games/${this.gameId}/character-sheets`, {
                 headers: { 'Authorization': `Bearer ${this.token}` }
             });
             
             if (response.ok) {
                 const data = await response.json();
-                this.renderCharacterSheet(data.characterSheet);
+                this.populateSheetSelector(data.sheets);
+            } else if (response.status === 404) {
+                // API endpoint not implemented yet, just populate with empty list
+                console.log('Character sheets API not implemented yet');
+                this.populateSheetSelector([]);
+            }
+        } catch (error) {
+            console.error('Failed to load sheets list:', error);
+            // Fallback to empty list if API fails
+            this.populateSheetSelector([]);
+        }
+    }
+    
+    populateSheetSelector(sheets) {
+        const select = document.getElementById('sheetSelect');
+        select.innerHTML = '<option value="player">Your Character</option>';
+        
+        if (sheets && sheets.length > 0) {
+            sheets.forEach(sheet => {
+                const option = document.createElement('option');
+                option.value = sheet.id;
+                const typeIcon = sheet.sheet_type === 'monster' ? '👹' : sheet.sheet_type === 'boss' ? '💀' : '👤';
+                option.textContent = `${typeIcon} ${sheet.name}`;
+                select.appendChild(option);
+            });
+        }
+    }
+    
+    setupSheetManagement() {
+        const sheetSelect = document.getElementById('sheetSelect');
+        const newSheetBtn = document.getElementById('newSheetBtn');
+        const deleteSheetBtn = document.getElementById('deleteSheetBtn');
+        const sheetInfo = document.getElementById('sheetInfo');
+        const sheetName = document.getElementById('sheetName');
+        const sheetType = document.getElementById('sheetType');
+        
+        // Remove existing listeners
+        sheetSelect.removeEventListener('change', this.handleSheetSelection);
+        newSheetBtn.removeEventListener('click', this.handleNewSheet);
+        deleteSheetBtn.removeEventListener('click', this.handleDeleteSheet);
+        
+        // Add event listeners
+        this.handleSheetSelection = async () => {
+            const selectedValue = sheetSelect.value;
+            deleteSheetBtn.style.display = selectedValue === 'player' ? 'none' : 'inline-block';
+            sheetInfo.style.display = selectedValue === 'new' ? 'block' : 'none';
+            
+            if (selectedValue !== 'new') {
+                await this.loadCharacterSheet(selectedValue);
+            }
+        };
+        
+        this.handleNewSheet = () => {
+            const option = document.createElement('option');
+            option.value = 'new';
+            option.textContent = 'New Sheet';
+            option.selected = true;
+            sheetSelect.appendChild(option);
+            sheetInfo.style.display = 'block';
+            deleteSheetBtn.style.display = 'none';
+            
+            // Clear the character sheet content for new entry
+            this.renderCharacterSheet(null, true);
+        };
+        
+        this.handleDeleteSheet = async () => {
+            const selectedValue = sheetSelect.value;
+            if (selectedValue === 'player' || selectedValue === 'new') return;
+            
+            if (confirm('Are you sure you want to delete this character sheet?')) {
+                try {
+                    const response = await fetch(`/api/games/${this.gameId}/character-sheets/${selectedValue}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': `Bearer ${this.token}` }
+                    });
+                    
+                    if (response.ok) {
+                        await this.loadSheetsList();
+                        sheetSelect.value = 'player';
+                        await this.loadCharacterSheet('player');
+                    }
+                } catch (error) {
+                    console.error('Failed to delete sheet:', error);
+                    alert('Failed to delete character sheet');
+                }
+            }
+        };
+        
+        sheetSelect.addEventListener('change', this.handleSheetSelection);
+        newSheetBtn.addEventListener('click', this.handleNewSheet);
+        deleteSheetBtn.addEventListener('click', this.handleDeleteSheet);
+    }
+    
+    async loadCharacterSheet(sheetId) {
+        const content = document.getElementById('characterSheetContent');
+        content.innerHTML = 'Loading character sheet...';
+        
+        try {
+            const url = sheetId === 'player' ? 
+                `/api/games/${this.gameId}/character-sheet` : 
+                `/api/games/${this.gameId}/character-sheets/${sheetId}`;
+                
+            const response = await fetch(url, {
+                headers: { 'Authorization': `Bearer ${this.token}` }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                this.currentSheetId = sheetId;
+                this.renderCharacterSheet(data.characterSheet || data, false, sheetId);
             } else if (response.status === 404) {
                 // No character sheet exists, create new one
-                this.renderCharacterSheet(null);
+                this.currentSheetId = sheetId;
+                if (sheetId !== 'player') {
+                    // For NPC sheets, treat as new sheet when API doesn't exist
+                    console.log('NPC character sheets API not implemented yet, creating new sheet');
+                    this.renderCharacterSheet(null, true, sheetId);
+                } else {
+                    this.renderCharacterSheet(null, false, sheetId);
+                }
             } else {
                 throw new Error('Failed to load character sheet');
             }
@@ -1859,9 +2073,13 @@ class DnDMap {
         }
     }
     
-    renderCharacterSheet(characterSheet) {
+    renderCharacterSheet(characterSheet, isNew = false, sheetId = 'player') {
         const content = document.getElementById('characterSheetContent');
-        const data = characterSheet ? characterSheet.character_data : {};
+        // Handle both direct data and nested character_data structure
+        const data = characterSheet ? 
+            (characterSheet.character_data || characterSheet) : {};
+        this.currentSheetId = sheetId;
+        this.isNewSheet = isNew;
         
         // Initialize with default values if not present
         const abilities = data.abilities || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
@@ -1957,32 +2175,32 @@ class DnDMap {
                             <div class="ability-score">
                                 <label>STR</label>
                                 <input type="number" id="abilityStr" value="${abilities.str}" min="1" max="30" onchange="game.updateAllCalculations()">
-                                <div class="modifier" id="modifierStr">${this.getModifier(abilities.str)}</div>
+                                <div class="modifier" id="modifierStr">${this.formatModifier(this.getModifierValue(abilities.str))}</div>
                             </div>
                             <div class="ability-score">
                                 <label>DEX</label>
                                 <input type="number" id="abilityDex" value="${abilities.dex}" min="1" max="30" onchange="game.updateAllCalculations()">
-                                <div class="modifier" id="modifierDex">${this.getModifier(abilities.dex)}</div>
+                                <div class="modifier" id="modifierDex">${this.formatModifier(this.getModifierValue(abilities.dex))}</div>
                             </div>
                             <div class="ability-score">
                                 <label>CON</label>
                                 <input type="number" id="abilityCon" value="${abilities.con}" min="1" max="30" onchange="game.updateAllCalculations()">
-                                <div class="modifier" id="modifierCon">${this.getModifier(abilities.con)}</div>
+                                <div class="modifier" id="modifierCon">${this.formatModifier(this.getModifierValue(abilities.con))}</div>
                             </div>
                             <div class="ability-score">
                                 <label>INT</label>
                                 <input type="number" id="abilityInt" value="${abilities.int}" min="1" max="30" onchange="game.updateAllCalculations()">
-                                <div class="modifier" id="modifierInt">${this.getModifier(abilities.int)}</div>
+                                <div class="modifier" id="modifierInt">${this.formatModifier(this.getModifierValue(abilities.int))}</div>
                             </div>
                             <div class="ability-score">
                                 <label>WIS</label>
                                 <input type="number" id="abilityWis" value="${abilities.wis}" min="1" max="30" onchange="game.updateAllCalculations()">
-                                <div class="modifier" id="modifierWis">${this.getModifier(abilities.wis)}</div>
+                                <div class="modifier" id="modifierWis">${this.formatModifier(this.getModifierValue(abilities.wis))}</div>
                             </div>
                             <div class="ability-score">
                                 <label>CHA</label>
                                 <input type="number" id="abilityCha" value="${abilities.cha}" min="1" max="30" onchange="game.updateAllCalculations()">
-                                <div class="modifier" id="modifierCha">${this.getModifier(abilities.cha)}</div>
+                                <div class="modifier" id="modifierCha">${this.formatModifier(this.getModifierValue(abilities.cha))}</div>
                             </div>
                         </div>
                     </div>
@@ -2004,7 +2222,7 @@ class DnDMap {
                             </div>
                             <div class="character-sheet-field">
                                 <label>Initiative</label>
-                                <input type="number" id="charInitiative" value="${this.getModifier(abilities.dex)}" readonly>
+                                <input type="number" id="charInitiative" value="${this.getModifierValue(abilities.dex)}" readonly>
                             </div>
                             <div class="character-sheet-field">
                                 <label>Speed</label>
@@ -2106,32 +2324,32 @@ class DnDMap {
                             <div class="save-row">
                                 <input type="checkbox" id="saveStrProf" ${saves.strProf ? 'checked' : ''} onchange="game.updateSaveModifier('str')">
                                 <label for="saveStrProf">Strength</label>
-                                <span class="save-modifier" id="saveStrMod">${this.getModifier(abilities.str) + (saves.strProf ? profBonus : 0)}</span>
+                                <span class="save-modifier" id="saveStrMod">${this.formatModifier(this.getModifierValue(abilities.str) + (saves.strProf ? profBonus : 0))}</span>
                             </div>
                             <div class="save-row">
                                 <input type="checkbox" id="saveDexProf" ${saves.dexProf ? 'checked' : ''} onchange="game.updateSaveModifier('dex')">
                                 <label for="saveDexProf">Dexterity</label>
-                                <span class="save-modifier" id="saveDexMod">${this.getModifier(abilities.dex) + (saves.dexProf ? profBonus : 0)}</span>
+                                <span class="save-modifier" id="saveDexMod">${this.formatModifier(this.getModifierValue(abilities.dex) + (saves.dexProf ? profBonus : 0))}</span>
                             </div>
                             <div class="save-row">
                                 <input type="checkbox" id="saveConProf" ${saves.conProf ? 'checked' : ''} onchange="game.updateSaveModifier('con')">
                                 <label for="saveConProf">Constitution</label>
-                                <span class="save-modifier" id="saveConMod">${this.getModifier(abilities.con) + (saves.conProf ? profBonus : 0)}</span>
+                                <span class="save-modifier" id="saveConMod">${this.formatModifier(this.getModifierValue(abilities.con) + (saves.conProf ? profBonus : 0))}</span>
                             </div>
                             <div class="save-row">
                                 <input type="checkbox" id="saveIntProf" ${saves.intProf ? 'checked' : ''} onchange="game.updateSaveModifier('int')">
                                 <label for="saveIntProf">Intelligence</label>
-                                <span class="save-modifier" id="saveIntMod">${this.getModifier(abilities.int) + (saves.intProf ? profBonus : 0)}</span>
+                                <span class="save-modifier" id="saveIntMod">${this.formatModifier(this.getModifierValue(abilities.int) + (saves.intProf ? profBonus : 0))}</span>
                             </div>
                             <div class="save-row">
                                 <input type="checkbox" id="saveWisProf" ${saves.wisProf ? 'checked' : ''} onchange="game.updateSaveModifier('wis')">
                                 <label for="saveWisProf">Wisdom</label>
-                                <span class="save-modifier" id="saveWisMod">${this.getModifier(abilities.wis) + (saves.wisProf ? profBonus : 0)}</span>
+                                <span class="save-modifier" id="saveWisMod">${this.formatModifier(this.getModifierValue(abilities.wis) + (saves.wisProf ? profBonus : 0))}</span>
                             </div>
                             <div class="save-row">
                                 <input type="checkbox" id="saveChaProf" ${saves.chaProf ? 'checked' : ''} onchange="game.updateSaveModifier('cha')">
                                 <label for="saveChaProf">Charisma</label>
-                                <span class="save-modifier" id="saveChaMod">${this.getModifier(abilities.cha) + (saves.chaProf ? profBonus : 0)}</span>
+                                <span class="save-modifier" id="saveChaMod">${this.formatModifier(this.getModifierValue(abilities.cha) + (saves.chaProf ? profBonus : 0))}</span>
                             </div>
                         </div>
                     </div>
@@ -2142,7 +2360,7 @@ class DnDMap {
                             ${skillList.map(skill => {
                                 const skillKey = skill.name.replace(/\s/g, '');
                                 const isProficient = skills[skillKey];
-                                const abilityMod = this.getModifier(abilities[skill.ability]);
+                                const abilityMod = this.getModifierValue(abilities[skill.ability]);
                                 const totalMod = abilityMod + (isProficient ? profBonus : 0);
                                 return `
                                     <div class="skill-row">
@@ -2155,7 +2373,7 @@ class DnDMap {
                         </div>
                         <div class="character-sheet-field" style="margin-top: 15px;">
                             <label>Passive Perception</label>
-                            <input type="number" id="passivePerception" value="${10 + this.getModifier(abilities.wis) + (skills.Perception ? profBonus : 0)}" readonly>
+                            <input type="number" id="passivePerception" value="${10 + this.getModifierValue(abilities.wis) + (skills.Perception ? profBonus : 0)}" readonly>
                         </div>
                     </div>
                 </div>
@@ -2227,12 +2445,20 @@ class DnDMap {
         return Math.floor((score - 10) / 2) >= 0 ? `+${Math.floor((score - 10) / 2)}` : `${Math.floor((score - 10) / 2)}`;
     }
     
+    getModifierValue(score) {
+        return Math.floor((score - 10) / 2);
+    }
+    
+    formatModifier(value) {
+        return value >= 0 ? `+${value}` : `${value}`;
+    }
+    
     getProficiencyBonus(level) {
         return Math.ceil(level / 4) + 1;
     }
     
     updateModifier(ability, value) {
-        const modifier = this.getModifier(parseInt(value));
+        const modifier = this.formatModifier(this.getModifierValue(parseInt(value)));
         document.getElementById(`modifier${ability.charAt(0).toUpperCase() + ability.slice(1)}`).textContent = modifier;
     }
     
@@ -2278,31 +2504,422 @@ class DnDMap {
         };
         
         try {
-            const response = await fetch(`/api/games/${this.gameId}/character-sheet`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${this.token}`
-                },
-                body: JSON.stringify({
-                    characterName: characterData.name,
-                    characterData: characterData
-                })
-            });
-            
-            if (response.ok) {
-                alert('Character sheet saved successfully!');
-            } else {
-                throw new Error('Failed to save character sheet');
+            // Handle saving new NPC/Monster sheets for Monarchs
+            if (this.userRole === 'king' && (this.currentSheetId === 'new' || this.isNewSheet)) {
+                const sheetName = document.getElementById('sheetName')?.value || characterData.name;
+                const sheetType = document.getElementById('sheetType')?.value || 'npc';
+                
+                if (!sheetName) {
+                    alert('Please enter a name for this NPC/Monster sheet');
+                    return;
+                }
+                
+                const response = await fetch(`/api/games/${this.gameId}/character-sheets`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    },
+                    body: JSON.stringify({
+                        name: sheetName,
+                        sheetType: sheetType,
+                        characterData: characterData
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('NPC/Monster sheet saved successfully!');
+                    await this.loadSheetsList();
+                    
+                    // Find the new sheet and select it
+                    const data = await response.json();
+                    const select = document.getElementById('sheetSelect');
+                    select.value = data.sheetId;
+                    this.currentSheetId = data.sheetId;
+                    this.isNewSheet = false;
+                    document.getElementById('sheetInfo').style.display = 'none';
+                } else {
+                    throw new Error('Failed to save NPC/Monster sheet');
+                }
+            }
+            // Handle updating existing NPC/Monster sheets for Monarchs
+            else if (this.userRole === 'king' && this.currentSheetId !== 'player') {
+                const response = await fetch(`/api/games/${this.gameId}/character-sheets/${this.currentSheetId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    },
+                    body: JSON.stringify({
+                        characterData: characterData
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('NPC/Monster sheet updated successfully!');
+                } else {
+                    throw new Error('Failed to update NPC/Monster sheet');
+                }
+            }
+            // Handle player character sheets (original functionality)
+            else {
+                const response = await fetch(`/api/games/${this.gameId}/character-sheet`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    },
+                    body: JSON.stringify({
+                        characterName: characterData.name,
+                        characterData: characterData
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Character sheet saved successfully!');
+                } else {
+                    throw new Error('Failed to save character sheet');
+                }
             }
         } catch (error) {
             console.error('Failed to save character sheet:', error);
-            alert('Failed to save character sheet. Please try again.');
+            
+            // Check if this is an NPC/Monster sheet save attempt without backend support
+            if (this.userRole === 'king' && this.currentSheetId !== 'player') {
+                alert('NPC/Monster character sheets feature requires backend implementation. The API endpoints for multiple character sheets are not yet available.');
+            } else {
+                alert('Failed to save character sheet. Please try again.');
+            }
         }
     }
     
     closeCharacterSheetModal() {
         document.getElementById('characterSheetModal').style.display = 'none';
+    }
+    
+    // UI Settings Modal Management
+    openUISettingsModal() {
+        document.getElementById('uiSettingsModal').style.display = 'flex';
+        this.initializeUISettings();
+    }
+    
+    closeUISettingsModal() {
+        document.getElementById('uiSettingsModal').style.display = 'none';
+    }
+    
+    initializeUISettings() {
+        // Define color palettes inspired by scientific color schemes
+        this.colorPalettes = {
+            default: {
+                name: 'Default Dark',
+                colors: {
+                    primary: '#ffffff',
+                    secondary: '#cccccc',
+                    background: '#1a1a1a',
+                    surface: '#2a2a2a',
+                    accent: '#4a4a4a',
+                    text: '#ffffff',
+                    textSecondary: '#b0b0b0',
+                    border: '#3a3a3a'
+                }
+            },
+            inferno: {
+                name: 'Inferno',
+                colors: {
+                    primary: '#fcffa4',
+                    secondary: '#f0605d',
+                    background: '#000004',
+                    surface: '#1b0c33',
+                    accent: '#ba2f5b',
+                    text: '#fcffa4',
+                    textSecondary: '#c7306c',
+                    border: '#420a68'
+                }
+            },
+            magma: {
+                name: 'Magma',
+                colors: {
+                    primary: '#fcfdbf',
+                    secondary: '#fc8961',
+                    background: '#000004',
+                    surface: '#2c115f',
+                    accent: '#b73779',
+                    text: '#fcfdbf',
+                    textSecondary: '#de4968',
+                    border: '#51127c'
+                }
+            },
+            viridis: {
+                name: 'Viridis',
+                colors: {
+                    primary: '#fde725',
+                    secondary: '#a0da39', 
+                    background: '#1f2d1f',
+                    surface: '#2d4a2d',
+                    accent: '#440154',
+                    text: '#fde725',
+                    textSecondary: '#5dc863',
+                    border: '#35b779'
+                }
+            },
+            plasma: {
+                name: 'Plasma',
+                colors: {
+                    primary: '#f0f921',
+                    secondary: '#cc4778',
+                    background: '#0d0887',
+                    surface: '#6a0a83',
+                    accent: '#eb5268',
+                    text: '#f0f921',
+                    textSecondary: '#db5c68',
+                    border: '#9b179e'
+                }
+            },
+            coldfire: {
+                name: 'Cold Fire',
+                colors: {
+                    primary: '#ff4444',
+                    secondary: '#44aaff',
+                    background: '#001122',
+                    surface: '#1a2844',
+                    accent: '#ff6633',
+                    text: '#ffffff',
+                    textSecondary: '#aaccff',
+                    border: '#2244aa'
+                }
+            },
+            arctic: {
+                name: 'Arctic',
+                colors: {
+                    primary: '#87ceeb',
+                    secondary: '#b0e0e6',
+                    background: '#0f1419',
+                    surface: '#1e2833',
+                    accent: '#4682b4',
+                    text: '#f0f8ff',
+                    textSecondary: '#b0d4e6',
+                    border: '#2f4f4f'
+                }
+            },
+            ember: {
+                name: 'Ember',
+                colors: {
+                    primary: '#ff6b35',
+                    secondary: '#f7931e',
+                    background: '#1a0e00',
+                    surface: '#2d1b00',
+                    accent: '#c5450e',
+                    text: '#fff5e6',
+                    textSecondary: '#ffb366',
+                    border: '#4a2500'
+                }
+            }
+        };
+        
+        this.renderColorPalettes();
+        this.loadCurrentPalette();
+    }
+    
+    renderColorPalettes() {
+        const grid = document.getElementById('colorPaletteGrid');
+        const currentPalette = localStorage.getItem('selectedPalette') || 'default';
+        
+        grid.innerHTML = '';
+        
+        Object.keys(this.colorPalettes).forEach(paletteKey => {
+            const palette = this.colorPalettes[paletteKey];
+            const option = document.createElement('div');
+            option.className = 'color-palette-option';
+            option.dataset.palette = paletteKey;
+            
+            if (paletteKey === currentPalette) {
+                option.classList.add('active');
+            }
+            
+            option.innerHTML = `
+                <div class="palette-name">${palette.name}</div>
+                <div class="palette-description">Click to apply this color theme</div>
+            `;
+            
+            option.addEventListener('click', () => {
+                this.selectColorPalette(paletteKey);
+            });
+            
+            grid.appendChild(option);
+        });
+    }
+    
+    selectColorPalette(paletteKey) {
+        // Update active state
+        document.querySelectorAll('.color-palette-option').forEach(option => {
+            option.classList.remove('active');
+        });
+        document.querySelector(`[data-palette="${paletteKey}"]`).classList.add('active');
+        
+        // Save selection and apply palette
+        localStorage.setItem('selectedPalette', paletteKey);
+        this.applyColorPalette(paletteKey);
+        this.updatePalettePreview(paletteKey);
+    }
+    
+    applyColorPalette(paletteKey) {
+        const palette = this.colorPalettes[paletteKey];
+        const root = document.documentElement;
+        
+        // Calculate derived colors
+        const surfaceDarker = this.darkenColor(palette.colors.surface, 20);
+        const borderColor = this.darkenColor(palette.colors.surface, 30);
+        const accentHover = this.lightenColor(palette.colors.accent, 15);
+        
+        // Apply comprehensive CSS custom properties
+        root.style.setProperty('--primary-color', palette.colors.primary);
+        root.style.setProperty('--secondary-color', palette.colors.secondary);
+        root.style.setProperty('--background-color', palette.colors.background);
+        root.style.setProperty('--surface-color', palette.colors.surface);
+        root.style.setProperty('--surface-darker', surfaceDarker);
+        root.style.setProperty('--border-color', palette.colors.border);
+        root.style.setProperty('--accent-color', palette.colors.accent);
+        root.style.setProperty('--accent-hover', accentHover);
+        root.style.setProperty('--text-color', palette.colors.text);
+        root.style.setProperty('--text-secondary', palette.colors.textSecondary);
+        
+        // Update chat container with alpha
+        const chatContainer = document.querySelector('.chat-container');
+        if (chatContainer) {
+            const surfaceRgb = this.hexToRgb(palette.colors.surface);
+            chatContainer.style.background = `rgba(${surfaceRgb.r}, ${surfaceRgb.g}, ${surfaceRgb.b}, 0.95)`;
+        }
+        
+        // Force update of elements that might not pick up CSS variables immediately
+        this.forceUpdateElements(palette);
+    }
+    
+    darkenColor(hex, percent) {
+        const rgb = this.hexToRgb(hex);
+        const factor = (100 - percent) / 100;
+        return this.rgbToHex(
+            Math.round(rgb.r * factor),
+            Math.round(rgb.g * factor),
+            Math.round(rgb.b * factor)
+        );
+    }
+    
+    lightenColor(hex, percent) {
+        const rgb = this.hexToRgb(hex);
+        const factor = percent / 100;
+        return this.rgbToHex(
+            Math.round(rgb.r + (255 - rgb.r) * factor),
+            Math.round(rgb.g + (255 - rgb.g) * factor),
+            Math.round(rgb.b + (255 - rgb.b) * factor)
+        );
+    }
+    
+    hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
+    }
+    
+    rgbToHex(r, g, b) {
+        return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+    
+    forceUpdateElements(palette) {
+        // Force update all panel backgrounds and borders
+        const panelElements = [
+            { selector: '.controls', background: palette.colors.surface, color: palette.colors.text, border: palette.colors.border },
+            { selector: '.roll-sidebar', background: palette.colors.surface, color: palette.colors.text, border: palette.colors.border },
+            { selector: '.modal-content', background: palette.colors.surface, color: palette.colors.text, border: palette.colors.border },
+            { selector: '.panel-collapse-btn', background: this.darkenColor(palette.colors.surface, 20), color: palette.colors.text },
+        ];
+        
+        panelElements.forEach(item => {
+            const elements = document.querySelectorAll(item.selector);
+            elements.forEach(el => {
+                if (item.background) el.style.backgroundColor = item.background;
+                if (item.color) el.style.color = item.color;
+                if (item.border) el.style.borderColor = item.border;
+            });
+        });
+        
+        // Aggressively update ALL text elements in panels
+        const textSelectors = [
+            '.controls, .controls *',
+            '.roll-sidebar, .roll-sidebar *', 
+            '.modal-content, .modal-content *',
+            '.chat-container, .chat-container *',
+            'label, span, div, p, h1, h2, h3, h4, h5, h6'
+        ];
+        
+        textSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+                // Skip elements with specific color classes or inline styles we want to preserve
+                if (!el.classList.contains('game-name') && 
+                    !el.classList.contains('user-role') &&
+                    !el.id.includes('joinCode') &&
+                    !el.classList.contains('chat-message')) {
+                    el.style.color = palette.colors.text;
+                }
+            });
+        });
+        
+        // Update specific text elements that need primary colors
+        const primaryColorElements = document.querySelectorAll('.game-name, h1, .controls h3');
+        primaryColorElements.forEach(el => {
+            el.style.color = palette.colors.primary;
+        });
+        
+        // Update secondary text elements  
+        const secondaryColorElements = document.querySelectorAll('.chat-message .timestamp, .palette-description');
+        secondaryColorElements.forEach(el => {
+            el.style.color = palette.colors.textSecondary;
+        });
+        
+        // Update button hover states dynamically
+        this.updateButtonHoverStates(palette);
+    }
+    
+    updateButtonHoverStates(palette) {
+        const style = document.getElementById('dynamic-hover-styles') || document.createElement('style');
+        style.id = 'dynamic-hover-styles';
+        
+        const accentHover = this.lightenColor(palette.colors.accent, 15);
+        const surfaceHover = this.lightenColor(this.darkenColor(palette.colors.surface, 20), 10);
+        
+        style.textContent = `
+            .room-info button:hover { background: ${accentHover} !important; }
+            .panel-collapse-btn:hover { background: ${surfaceHover} !important; }
+            .btn-secondary:hover { background: ${accentHover} !important; }
+            .color-palette-option.active { border-color: ${palette.colors.primary} !important; background: ${this.lightenColor(palette.colors.surface, 10)} !important; }
+        `;
+        
+        if (!document.head.contains(style)) {
+            document.head.appendChild(style);
+        }
+    }
+    
+    loadCurrentPalette() {
+        const currentPalette = localStorage.getItem('selectedPalette') || 'default';
+        this.applyColorPalette(currentPalette);
+        this.updatePalettePreview(currentPalette);
+    }
+    
+    updatePalettePreview(paletteKey) {
+        const palette = this.colorPalettes[paletteKey];
+        document.getElementById('currentPaletteName').textContent = palette.name;
+        
+        const preview = document.getElementById('palettePreview');
+        preview.innerHTML = `
+            <span style="color: ${palette.colors.primary};">■</span>
+            <span style="color: ${palette.colors.secondary};">■</span>
+            <span style="color: ${palette.colors.accent};">■</span>
+            <span style="color: ${palette.colors.text};">■</span>
+            <span style="background: ${palette.colors.surface}; padding: 2px 8px; border-radius: 3px; color: ${palette.colors.text};">Sample</span>
+        `;
     }
     
     // Character Sheet Tab Management
@@ -2772,6 +3389,8 @@ class DnDMap {
         const name = document.getElementById('macroName').value.trim();
         const formula = document.getElementById('macroFormula').value.trim();
         const description = document.getElementById('macroDescription').value.trim();
+        const linkedCharacterSheet = this.userRole === 'king' ? 
+            document.getElementById('macroCharacterSheet')?.value || null : null;
         
         if (!name || !formula) {
             alert('Name and formula are required');
@@ -2779,13 +3398,18 @@ class DnDMap {
         }
         
         try {
+            const macroData = { name, formula, description };
+            if (linkedCharacterSheet) {
+                macroData.linkedCharacterSheet = linkedCharacterSheet;
+            }
+            
             const response = await fetch(`/api/games/${this.gameId}/macros`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.token}`
                 },
-                body: JSON.stringify({ name, formula, description })
+                body: JSON.stringify(macroData)
             });
             
             if (response.ok) {
