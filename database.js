@@ -49,6 +49,7 @@ const initDatabase = () => {
           role TEXT NOT NULL CHECK(role IN ('king', 'knight')),
           character_name TEXT,
           character_data TEXT,
+          has_grail BOOLEAN DEFAULT 0,
           joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE,
           FOREIGN KEY (user_id) REFERENCES users (id),
@@ -84,6 +85,21 @@ const initDatabase = () => {
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (user_id) REFERENCES users (id),
           FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE
+        )
+      `);
+
+      db.run(`
+        CREATE TABLE IF NOT EXISTS macros (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL,
+          game_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          formula TEXT NOT NULL,
+          description TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users (id),
+          FOREIGN KEY (game_id) REFERENCES games (id) ON DELETE CASCADE,
+          UNIQUE(user_id, game_id, name)
         )
       `, (err) => {
         if (err) reject(err);
@@ -224,14 +240,14 @@ class Game {
     });
   }
 
-  static async addParticipant(gameId, userId, role = 'knight') {
+  static async addParticipant(gameId, userId, role = 'knight', characterName = null) {
     return new Promise((resolve, reject) => {
       db.run(
-        'INSERT INTO game_participants (game_id, user_id, role) VALUES (?, ?, ?)',
-        [gameId, userId, role],
+        'INSERT INTO game_participants (game_id, user_id, role, character_name) VALUES (?, ?, ?, ?)',
+        [gameId, userId, role, characterName],
         function(err) {
           if (err) reject(err);
-          else resolve({ gameId, userId, role });
+          else resolve({ gameId, userId, role, characterName });
         }
       );
     });
@@ -249,11 +265,24 @@ class Game {
       );
     });
   }
+  
+  static async updateCharacterName(gameId, userId, characterName) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'UPDATE game_participants SET character_name = ? WHERE game_id = ? AND user_id = ?',
+        [characterName, gameId, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ gameId, userId, characterName });
+        }
+      );
+    });
+  }
 
   static async getParticipants(gameId) {
     return new Promise((resolve, reject) => {
       db.all(
-        `SELECT u.id, u.username, u.email, gp.role, gp.character_name, gp.joined_at
+        `SELECT u.id, u.username, u.email, gp.role, gp.character_name, gp.has_grail, gp.joined_at
          FROM game_participants gp
          JOIN users u ON gp.user_id = u.id
          WHERE gp.game_id = ?`,
@@ -312,7 +341,7 @@ class Game {
     const updateValue = field === 'tokens' ? JSON.stringify(value) : value;
     
     // Define allowed fields to prevent SQL injection
-    const allowedFields = ['map_image', 'tokens', 'grid_size', 'notes', 'map_width', 'map_height'];
+    const allowedFields = ['map_image', 'tokens', 'grid_size', 'notes', 'map_width', 'map_height', 'grail_modifiers'];
     if (!allowedFields.includes(field)) {
       throw new Error(`Invalid field: ${field}`);
     }
@@ -435,20 +464,59 @@ class Game {
       );
     });
   }
-}
 
-class CharacterSheet {
-  static async create(userId, gameId, characterData) {
+  static async assignGrail(gameId, userId, assignerId) {
     return new Promise((resolve, reject) => {
-      const { name, class: charClass, level, race, stats, inventory, notes } = characterData;
+      db.serialize(() => {
+        // First, remove grail from all participants in this game
+        db.run(
+          'UPDATE game_participants SET has_grail = 0 WHERE game_id = ?',
+          [gameId],
+          (err) => {
+            if (err) {
+              reject(err);
+              return;
+            }
+            
+            // Then assign grail to the specified user
+            db.run(
+              'UPDATE game_participants SET has_grail = 1 WHERE game_id = ? AND user_id = ?',
+              [gameId, userId],
+              function(err) {
+                if (err) reject(err);
+                else resolve({ gameId, userId, hasGrail: true });
+              }
+            );
+          }
+        );
+      });
+    });
+  }
+
+  static async removeGrail(gameId, userId, assignerId) {
+    return new Promise((resolve, reject) => {
       db.run(
-        `INSERT INTO character_sheets (user_id, game_id, name, class, level, race, stats, inventory, notes) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [userId, gameId, name, charClass, level || 1, race, 
-         JSON.stringify(stats || {}), JSON.stringify(inventory || []), notes || ''],
+        'UPDATE game_participants SET has_grail = 0 WHERE game_id = ? AND user_id = ?',
+        [gameId, userId],
         function(err) {
           if (err) reject(err);
-          else resolve({ id: this.lastID, ...characterData });
+          else resolve({ gameId, userId, hasGrail: false });
+        }
+      );
+    });
+  }
+}
+
+class Macro {
+  static async create(userId, gameId, name, formula, description = null) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `INSERT INTO macros (user_id, game_id, name, formula, description) 
+         VALUES (?, ?, ?, ?, ?)`,
+        [userId, gameId, name, formula, description],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID, userId, gameId, name, formula, description });
         }
       );
     });
@@ -457,45 +525,153 @@ class CharacterSheet {
   static async findByUserAndGame(userId, gameId) {
     return new Promise((resolve, reject) => {
       db.all(
-        'SELECT * FROM character_sheets WHERE user_id = ? AND game_id = ?',
+        'SELECT * FROM macros WHERE user_id = ? AND game_id = ? ORDER BY name',
         [userId, gameId],
         (err, rows) => {
           if (err) reject(err);
-          else {
-            rows.forEach(row => {
-              if (row.stats) row.stats = JSON.parse(row.stats);
-              if (row.inventory) row.inventory = JSON.parse(row.inventory);
+          else resolve(rows);
+        }
+      );
+    });
+  }
+
+  static async delete(id, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        'DELETE FROM macros WHERE id = ? AND user_id = ?',
+        [id, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.changes > 0);
+        }
+      );
+    });
+  }
+
+  static async update(id, userId, updates) {
+    const fields = [];
+    const values = [];
+    
+    if (updates.name) {
+      fields.push('name = ?');
+      values.push(updates.name);
+    }
+    if (updates.formula) {
+      fields.push('formula = ?');
+      values.push(updates.formula);
+    }
+    if (updates.description !== undefined) {
+      fields.push('description = ?');
+      values.push(updates.description);
+    }
+    
+    if (fields.length === 0) {
+      return Promise.resolve(false);
+    }
+    
+    values.push(id, userId);
+    
+    return new Promise((resolve, reject) => {
+      db.run(
+        `UPDATE macros SET ${fields.join(', ')} WHERE id = ? AND user_id = ?`,
+        values,
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.changes > 0);
+        }
+      );
+    });
+  }
+}
+
+class CharacterSheet {
+  static async create(gameId, userId, ruleSystem = 'dnd5e', characterName = '', characterData = {}) {
+    return new Promise((resolve, reject) => {
+      const dataJson = JSON.stringify(characterData);
+      db.run(
+        `INSERT INTO character_sheets (game_id, user_id, rule_system, character_name, character_data, updated_at) 
+         VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [gameId, userId, ruleSystem, characterName, dataJson],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID, gameId, userId, ruleSystem, characterName, characterData });
+        }
+      );
+    });
+  }
+
+  static async findByGameAndUser(gameId, userId) {
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM character_sheets WHERE game_id = ? AND user_id = ?`,
+        [gameId, userId],
+        (err, row) => {
+          if (err) reject(err);
+          else if (row) {
+            resolve({
+              ...row,
+              character_data: JSON.parse(row.character_data || '{}')
             });
-            resolve(rows);
+          } else {
+            resolve(null);
           }
         }
       );
     });
   }
 
-  static async update(id, updates) {
-    const fields = [];
-    const values = [];
-    
-    Object.keys(updates).forEach(key => {
-      if (['stats', 'inventory'].includes(key)) {
-        fields.push(`${key} = ?`);
-        values.push(JSON.stringify(updates[key]));
-      } else {
-        fields.push(`${key} = ?`);
-        values.push(updates[key]);
-      }
-    });
-    
-    values.push(id);
-    
+  static async findAllByGame(gameId) {
     return new Promise((resolve, reject) => {
+      db.all(
+        `SELECT cs.*, u.username FROM character_sheets cs
+         JOIN users u ON cs.user_id = u.id 
+         WHERE cs.game_id = ?`,
+        [gameId],
+        (err, rows) => {
+          if (err) reject(err);
+          else {
+            const sheets = rows.map(row => ({
+              ...row,
+              character_data: JSON.parse(row.character_data || '{}')
+            }));
+            resolve(sheets);
+          }
+        }
+      );
+    });
+  }
+
+  static async update(gameId, userId, characterName, characterData) {
+    return new Promise((resolve, reject) => {
+      const dataJson = JSON.stringify(characterData);
       db.run(
-        `UPDATE character_sheets SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        values,
+        `UPDATE character_sheets 
+         SET character_name = ?, character_data = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE game_id = ? AND user_id = ?`,
+        [characterName, dataJson, gameId, userId],
         function(err) {
           if (err) reject(err);
-          else resolve({ id, ...updates });
+          else if (this.changes === 0) {
+            // No existing sheet, create new one
+            CharacterSheet.create(gameId, userId, 'dnd5e', characterName, characterData)
+              .then(resolve)
+              .catch(reject);
+          } else {
+            resolve({ gameId, userId, characterName, characterData });
+          }
+        }
+      );
+    });
+  }
+
+  static async delete(gameId, userId) {
+    return new Promise((resolve, reject) => {
+      db.run(
+        `DELETE FROM character_sheets WHERE game_id = ? AND user_id = ?`,
+        [gameId, userId],
+        function(err) {
+          if (err) reject(err);
+          else resolve({ deleted: this.changes > 0 });
         }
       );
     });
@@ -507,5 +683,6 @@ module.exports = {
   initDatabase,
   User,
   Game,
-  CharacterSheet
+  CharacterSheet,
+  Macro
 };

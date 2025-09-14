@@ -226,13 +226,16 @@ class GamesManager {
         e.preventDefault();
         
         const gameCode = document.getElementById('gameCode').value;
+        const characterName = document.getElementById('characterName').value;
         
         try {
             const response = await fetch(`/api/games/${gameCode}/join`, {
                 method: 'POST',
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.token}`
-                }
+                },
+                body: JSON.stringify({ characterName })
             });
             
             if (response.ok) {

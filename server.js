@@ -4,7 +4,7 @@ const http = require('http');
 const socketIO = require('socket.io');
 const path = require('path');
 const session = require('express-session');
-const { initDatabase, User, Game, CharacterSheet } = require('./database');
+const { initDatabase, User, Game, CharacterSheet, Macro } = require('./database');
 const { generateToken, authenticateToken, requireRole, socketAuth } = require('./auth');
 
 const app = express();
@@ -123,13 +123,14 @@ app.get('/api/games/:gameId', authenticateToken, async (req, res) => {
 app.post('/api/games/:gameId/join', authenticateToken, async (req, res) => {
   try {
     const { gameId } = req.params;
+    const { characterName } = req.body;
     
     const existing = await Game.getUserRole(gameId, req.user.id);
     if (existing) {
       return res.status(400).json({ error: 'Already in this game' });
     }
     
-    await Game.addParticipant(gameId, req.user.id, 'knight');
+    await Game.addParticipant(gameId, req.user.id, 'knight', characterName);
     res.json({ message: 'Joined game successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to join game' });
@@ -155,6 +156,22 @@ app.post('/api/games/:gameId/participants/:userId/role',
   }
 });
 
+app.put('/api/games/:gameId/character-name', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { characterName } = req.body;
+    
+    if (!characterName) {
+      return res.status(400).json({ error: 'Character name is required' });
+    }
+    
+    await Game.updateCharacterName(gameId, req.user.id, characterName);
+    res.json({ message: 'Character name updated successfully' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update character name' });
+  }
+});
+
 app.get('/api/games/:gameId/characters', authenticateToken, async (req, res) => {
   try {
     const characters = await CharacterSheet.findByUserAndGame(req.user.id, req.params.gameId);
@@ -170,6 +187,48 @@ app.post('/api/games/:gameId/characters', authenticateToken, async (req, res) =>
     res.json({ character });
   } catch (err) {
     res.status(500).json({ error: 'Failed to create character' });
+  }
+});
+
+// Macro endpoints
+app.get('/api/games/:gameId/macros', authenticateToken, async (req, res) => {
+  try {
+    const macros = await Macro.findByUserAndGame(req.user.id, req.params.gameId);
+    res.json({ macros });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch macros' });
+  }
+});
+
+app.post('/api/games/:gameId/macros', authenticateToken, async (req, res) => {
+  try {
+    const { name, formula, description } = req.body;
+    
+    if (!name || !formula) {
+      return res.status(400).json({ error: 'Name and formula are required' });
+    }
+    
+    const macro = await Macro.create(req.user.id, req.params.gameId, name, formula, description);
+    res.json({ macro });
+  } catch (err) {
+    if (err.message && err.message.includes('UNIQUE constraint')) {
+      res.status(400).json({ error: 'A macro with this name already exists' });
+    } else {
+      res.status(500).json({ error: 'Failed to create macro' });
+    }
+  }
+});
+
+app.delete('/api/games/:gameId/macros/:macroId', authenticateToken, async (req, res) => {
+  try {
+    const deleted = await Macro.delete(req.params.macroId, req.user.id);
+    if (deleted) {
+      res.json({ message: 'Macro deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Macro not found' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete macro' });
   }
 });
 
@@ -195,6 +254,190 @@ app.put('/api/games/:gameId/settings', authenticateToken, async (req, res) => {
     res.json({ message: 'Settings updated successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+});
+
+app.post('/api/games/:gameId/grail/assign/:userId', 
+  authenticateToken, 
+  requireRole('king'), 
+  async (req, res) => {
+  try {
+    const { gameId, userId } = req.params;
+    
+    const game = await Game.findById(gameId);
+    if (!game || game.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the Monarch can assign the grail' });
+    }
+    
+    await Game.assignGrail(gameId, userId, req.user.id);
+    res.json({ message: 'Grail assigned successfully' });
+  } catch (err) {
+    console.error('Failed to assign grail:', err);
+    res.status(500).json({ error: 'Failed to assign grail' });
+  }
+});
+
+app.post('/api/games/:gameId/grail/remove/:userId', 
+  authenticateToken, 
+  requireRole('king'), 
+  async (req, res) => {
+  try {
+    const { gameId, userId } = req.params;
+    
+    const game = await Game.findById(gameId);
+    if (!game || game.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the Monarch can remove the grail' });
+    }
+    
+    await Game.removeGrail(gameId, userId, req.user.id);
+    res.json({ message: 'Grail removed successfully' });
+  } catch (err) {
+    console.error('Failed to remove grail:', err);
+    res.status(500).json({ error: 'Failed to remove grail' });
+  }
+});
+
+app.post('/api/games/:gameId/grail/modifiers', 
+  authenticateToken, 
+  requireRole('king'), 
+  async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { rollModifiers, damageModifiers, customMessage } = req.body;
+    
+    const game = await Game.findById(gameId);
+    if (!game || game.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the Monarch can set grail modifiers' });
+    }
+    
+    const modifiers = {
+      rollModifiers: rollModifiers || [],
+      damageModifiers: damageModifiers || [],
+      customMessage: customMessage || ''
+    };
+    
+    await Game.updateState(gameId, 'grail_modifiers', JSON.stringify(modifiers));
+    res.json({ message: 'Grail modifiers updated successfully', modifiers });
+  } catch (err) {
+    console.error('Failed to update grail modifiers:', err);
+    res.status(500).json({ error: 'Failed to update grail modifiers' });
+  }
+});
+
+app.get('/api/games/:gameId/grail/modifiers', 
+  authenticateToken, 
+  async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    
+    const game = await Game.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+    
+    // Allow access if user is the monarch OR if user has the grail
+    const isMonarch = game.owner_id === req.user.id;
+    const participants = await Game.getParticipants(gameId);
+    const participant = participants.find(p => p.id === req.user.id);
+    const hasGrail = participant?.has_grail;
+    
+    if (!isMonarch && !hasGrail) {
+      return res.status(403).json({ error: 'Only the Monarch or grail holder can view grail modifiers' });
+    }
+    
+    const state = await Game.getState(gameId);
+    const modifiers = state.grail_modifiers ? JSON.parse(state.grail_modifiers) : {
+      rollModifiers: [],
+      damageModifiers: [],
+      customMessage: ''
+    };
+    
+    res.json({ modifiers });
+  } catch (err) {
+    console.error('Failed to get grail modifiers:', err);
+    res.status(500).json({ error: 'Failed to get grail modifiers' });
+  }
+});
+
+// Character Sheet endpoints
+app.get('/api/games/:gameId/character-sheet', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    
+    // Verify the user is part of this game
+    const game = await Game.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+    
+    const participants = await Game.getParticipants(gameId);
+    const participant = participants.find(p => p.id === req.user.id);
+    const isMonarch = game.owner_id === req.user.id;
+    
+    if (!participant && !isMonarch) {
+      return res.status(403).json({ error: 'You are not part of this game' });
+    }
+    
+    // Get character sheet for this user in this game
+    const characterSheet = await CharacterSheet.findByGameAndUser(gameId, req.user.id);
+    
+    res.json({ characterSheet });
+  } catch (err) {
+    console.error('Failed to get character sheet:', err);
+    res.status(500).json({ error: 'Failed to get character sheet' });
+  }
+});
+
+app.post('/api/games/:gameId/character-sheet', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { characterName, characterData } = req.body;
+    
+    // Verify the user is part of this game
+    const game = await Game.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+    
+    const participants = await Game.getParticipants(gameId);
+    const participant = participants.find(p => p.id === req.user.id);
+    const isMonarch = game.owner_id === req.user.id;
+    
+    if (!participant && !isMonarch) {
+      return res.status(403).json({ error: 'You are not part of this game' });
+    }
+    
+    // Save or update character sheet
+    await CharacterSheet.update(gameId, req.user.id, characterName, characterData);
+    
+    res.json({ message: 'Character sheet saved successfully' });
+  } catch (err) {
+    console.error('Failed to save character sheet:', err);
+    res.status(500).json({ error: 'Failed to save character sheet' });
+  }
+});
+
+app.get('/api/games/:gameId/all-character-sheets', authenticateToken, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    
+    // Verify the user is the game owner (DM/Monarch)
+    const game = await Game.findById(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+    
+    if (game.owner_id !== req.user.id) {
+      return res.status(403).json({ error: 'Only the game owner can view all character sheets' });
+    }
+    
+    // Get all character sheets for this game
+    const characterSheets = await CharacterSheet.findAllByGame(gameId);
+    
+    res.json({ characterSheets });
+  } catch (err) {
+    console.error('Failed to get all character sheets:', err);
+    res.status(500).json({ error: 'Failed to get all character sheets' });
   }
 });
 
@@ -397,6 +640,111 @@ io.on('connection', (socket) => {
     await Game.updateState(gameId, 'map_width', mapWidth);
     await Game.updateState(gameId, 'map_height', mapHeight);
     socket.to(gameId).emit('map-dimensions-updated', { mapWidth, mapHeight });
+  });
+  
+  socket.on('grail-updated', ({ gameId }) => {
+    if (socket.userRole !== 'king') {
+      socket.emit('error', 'Only Monarchs can update grail assignments');
+      return;
+    }
+    
+    socket.to(gameId).emit('grail-updated');
+  });
+  
+  socket.on('roll', async (rollData) => {
+    // Get the character name for this user
+    const participants = await Game.getParticipants(rollData.gameId);
+    const participant = participants.find(p => p.id === socket.user.id);
+    const characterName = participant?.character_name || socket.user.username;
+    
+    // Add character name to roll data
+    const rollWithCharacterName = {
+      ...rollData,
+      characterName: characterName
+    };
+    
+    // Broadcast roll to all players in the game
+    io.to(rollData.gameId).emit('roll-result', rollWithCharacterName);
+  });
+  
+  socket.on('chat', async ({ gameId, content }) => {
+    // Get the character name for this user
+    const participants = await Game.getParticipants(gameId);
+    const participant = participants.find(p => p.id === socket.user.id);
+    const characterName = participant?.character_name || socket.user.username;
+    
+    const message = {
+      sender: characterName,
+      senderRole: socket.userRole,
+      content: content,
+      timestamp: new Date().toISOString(),
+      type: 'public'
+    };
+    
+    io.to(gameId).emit('chat-message', message);
+  });
+  
+  socket.on('whisper', async ({ gameId, target, content }) => {
+    // Find the target user's socket
+    const participants = await Game.getParticipants(gameId);
+    
+    // Get sender's character name
+    const sender = participants.find(p => p.id === socket.user.id);
+    const senderCharacterName = sender?.character_name || socket.user.username;
+    
+    // Check for special aliases
+    let targetUser;
+    const targetLower = target.toLowerCase();
+    if (targetLower === 'dm' || targetLower === 'monarch') {
+      // Find the monarch
+      targetUser = participants.find(p => p.role === 'king');
+      if (!targetUser) {
+        socket.emit('chat-message', {
+          type: 'system',
+          content: 'No Monarch found in this game'
+        });
+        return;
+      }
+    } else {
+      // Try to find by character name first, then by username
+      targetUser = participants.find(p => 
+        (p.character_name && p.character_name.toLowerCase() === target.toLowerCase()) || 
+        p.username.toLowerCase() === target.toLowerCase()
+      );
+    }
+    
+    if (!targetUser) {
+      socket.emit('chat-message', {
+        type: 'system',
+        content: `User '${target}' not found in this game`
+      });
+      return;
+    }
+    
+    // Find target's socket ID
+    const targetSocket = [...io.sockets.sockets.values()].find(
+      s => s.user && s.user.id === targetUser.id && s.gameId === gameId
+    );
+    
+    if (!targetSocket) {
+      socket.emit('chat-message', {
+        type: 'system',
+        content: `${target} is not online`
+      });
+      return;
+    }
+    
+    const targetCharacterName = targetUser.character_name || targetUser.username;
+    
+    const whisperMessage = {
+      sender: senderCharacterName,
+      senderRole: socket.userRole,
+      target: targetCharacterName,
+      content: content,
+      timestamp: new Date().toISOString()
+    };
+    
+    targetSocket.emit('whisper-message', whisperMessage);
   });
 
   socket.on('disconnect', () => {

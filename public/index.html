@@ -13,11 +13,17 @@
             <h1>Round Table D&D</h1>
             <div class="room-info">
                 <span class="game-name" id="gameName"></span>
-                <span class="user-role" id="userRole"></span>
-                <div class="king-only" id="joinCodeSection" style="display: flex; align-items: center; gap: 10px; margin: 0 10px;">
+                <div class="character-info">
+                    <span class="user-role" id="userRole"></span>
+                    <input type="text" id="characterNameInput" class="character-name-input" placeholder="Character name" style="display: none;">
+                    <span id="characterNameDisplay" class="character-name-display" title="Click to edit"></span>
+                </div>
+                <div id="joinCodeSection" style="display: flex; align-items: center; gap: 10px; margin: 0 10px;">
                     <span style="font-size: 0.9rem; color: #b0b0b0;">Join Code:</span>
                     <code id="joinCode" style="background: rgba(74, 124, 89, 0.2); padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; color: #4ecdc4; cursor: pointer;" title="Click to copy">-</code>
                 </div>
+                <button id="macrosConfig" class="btn-secondary" title="Configure Macros">⚙️ Macros</button>
+                <button id="characterSheet" class="btn-secondary" title="Character Sheet">📜 Character Sheet</button>
                 <span id="connectionStatus" class="status">Disconnected</span>
                 <button id="backToGames" class="btn-secondary">Back to Games</button>
             </div>
@@ -25,45 +31,203 @@
         
         <div class="container">
             <aside class="controls">
-                <h3 class="king-only">Map Controls</h3>
-                <div class="control-group king-only">
-                    <label for="mapUpload">Upload Map:</label>
-                    <input type="file" id="mapUpload" accept="image/*">
-                </div>
-                
-                <div class="control-group king-only">
-                    <label for="gridToggle">
-                        <input type="checkbox" id="gridToggle" checked> Show Grid
-                    </label>
-                </div>
-                
-                <div class="control-group king-only">
-                    <label>Map Dimensions:</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <span style="font-size: 0.9em; color: #b0b0b0;">W:</span>
-                        <input type="number" id="mapWidth" min="50" max="2000" value="500" step="50" style="flex: 1;" placeholder="Width">
-                        <span style="font-size: 0.9em; color: #b0b0b0;">ft × H:</span>
-                        <input type="number" id="mapHeight" min="50" max="2000" value="500" step="50" style="flex: 1;" placeholder="Height">
-                        <span style="font-size: 0.9em; color: #b0b0b0;">ft</span>
+                <div class="panel-content" id="controlsContent">
+                    <!-- Players Section - First and expanded by default -->
+                    <div class="section players-section">
+                        <h3 class="collapsible-header" onclick="game.toggleSection('players')">
+                            Players 
+                            <span class="collapse-arrow" id="playersArrow">▼</span>
+                        </h3>
+                        <div class="section-content" id="playersContent">
+                            <div class="players-list" id="playersList"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Map Controls Section - King only, collapsed by default -->
+                    <div class="section map-controls-section king-only">
+                        <h3 class="collapsible-header" onclick="game.toggleSection('mapControls')">
+                            Map Controls 
+                            <span class="collapse-arrow collapsed" id="mapControlsArrow">▶</span>
+                        </h3>
+                        <div class="section-content collapsed" id="mapControlsContent">
+                            <div class="control-group">
+                                <label for="mapUpload">Upload Map:</label>
+                                <input type="file" id="mapUpload" accept="image/*">
+                            </div>
+                            
+                            <div class="control-group">
+                                <label for="gridToggle">
+                                    <input type="checkbox" id="gridToggle" checked> Show Grid
+                                </label>
+                            </div>
+                            
+                            <div class="control-group">
+                                <label>Map Dimensions:</label>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <span style="font-size: 0.9em; color: #b0b0b0;">W:</span>
+                                    <input type="number" id="mapWidth" min="50" max="2000" value="500" step="50" style="flex: 1;" placeholder="Width">
+                                    <span style="font-size: 0.9em; color: #b0b0b0;">ft × H:</span>
+                                    <input type="number" id="mapHeight" min="50" max="2000" value="500" step="50" style="flex: 1;" placeholder="Height">
+                                    <span style="font-size: 0.9em; color: #b0b0b0;">ft</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tokens Section - King only, collapsed by default -->
+                    <div class="section tokens-section king-only">
+                        <h3 class="collapsible-header" onclick="game.toggleSection('tokens')">
+                            Tokens 
+                            <span class="collapse-arrow collapsed" id="tokensArrow">▶</span>
+                        </h3>
+                        <div class="section-content collapsed" id="tokensContent">
+                            <div class="control-group">
+                                <button id="addPlayerToken">Add Player Token</button>
+                                <button id="addMonsterToken">Add Monster Token</button>
+                                <button id="clearTokens">Clear All Tokens</button>
+                            </div>
+                            <div class="token-list" id="tokenList"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Grail Options Section - King only, collapsed by default -->
+                    <div class="section grail-options-section king-only">
+                        <h3 class="collapsible-header" onclick="game.toggleSection('grailOptions')">
+                            Grail Options 
+                            <span class="collapse-arrow collapsed" id="grailOptionsArrow">▶</span>
+                        </h3>
+                        <div class="section-content collapsed" id="grailOptionsContent">
+                            <div class="control-group">
+                                <label>Grail Roll Modifiers:</label>
+                                <div class="grail-modifiers-list">
+                                    <label><input type="checkbox" id="grail_advantage" value="advantage"> Advantage (2d20kh1)</label>
+                                    <label><input type="checkbox" id="grail_disadvantage" value="disadvantage"> Disadvantage (2d20kl1)</label>
+                                    <label><input type="checkbox" id="grail_plus1" value="plus1"> +1 to all rolls</label>
+                                    <label><input type="checkbox" id="grail_plus2" value="plus2"> +2 to all rolls</label>
+                                    <label><input type="checkbox" id="grail_plus3" value="plus3"> +3 to all rolls</label>
+                                    <label><input type="checkbox" id="grail_minus1" value="minus1"> -1 to all rolls</label>
+                                    <label><input type="checkbox" id="grail_minus2" value="minus2"> -2 to all rolls</label>
+                                    <label><input type="checkbox" id="grail_reroll_d20" value="reroll_d20"> Reroll 1's on d20</label>
+                                    <label><input type="checkbox" id="grail_reroll_all" value="reroll_all"> Reroll all 1's</label>
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label>Grail Damage Modifiers:</label>
+                                <div class="grail-damage-modifiers-list">
+                                    <label><input type="checkbox" id="grail_dmg_plus1" value="plus1"> +1 damage</label>
+                                    <label><input type="checkbox" id="grail_dmg_plus2" value="plus2"> +2 damage</label>
+                                    <label><input type="checkbox" id="grail_dmg_plus3" value="plus3"> +3 damage</label>
+                                    <label><input type="checkbox" id="grail_dmg_double" value="double"> Double damage</label>
+                                    <label><input type="checkbox" id="grail_dmg_maxdamage" value="maxdamage"> Max damage</label>
+                                </div>
+                            </div>
+                            <div class="control-group">
+                                <label for="grailMessage">Custom Message (optional):</label>
+                                <input type="text" id="grailMessage" class="grail-message-input" placeholder="e.g., [Divine Blessing], [Cursed], [Enchanted]" maxlength="50">
+                                <small style="color: #808080; font-size: 0.8rem;">Leave blank to hide modifier indicator in rolls</small>
+                            </div>
+                            <div class="control-group">
+                                <button id="applyGrailOptions" class="btn-primary">Apply Grail Options</button>
+                                <button id="resetGrailOptions" class="btn-secondary">Reset to None</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <h3>Tokens</h3>
-                <div class="control-group king-only">
-                    <button id="addPlayerToken">Add Player Token</button>
-                    <button id="addMonsterToken">Add Monster Token</button>
-                    <button id="clearTokens">Clear All Tokens</button>
+                <div class="panel-header">
+                    <button class="panel-collapse-btn" id="controlsCollapseBtn" title="Collapse/Expand Controls">◀</button>
                 </div>
-                
-                <div class="token-list" id="tokenList"></div>
-                
-                <h3>Players</h3>
-                <div class="players-list" id="playersList"></div>
             </aside>
             
             <main class="map-container">
                 <canvas id="mapCanvas"></canvas>
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <button class="chat-collapse-btn" id="chatCollapseBtn" title="Chat: Collapsed / 3 Lines / 10 Lines">▼</button>
+                    </div>
+                    <div class="chat-messages" id="chatMessages"></div>
+                    <div class="chat-input-wrapper">
+                        <input type="text" id="chatInput" class="chat-input" placeholder="Say: 'The beast attacks! /roll 1d20+5' or use /w <name>, /r to reply" />
+                        <button id="quickRollsBtn" class="btn-quick-rolls" title="Quick Rolls">🎲</button>
+                        <button id="chatSend" class="chat-send">Send</button>
+                    </div>
+                    <div class="quick-rolls-popup" id="quickRollsPopup" style="display: none;">
+                        <div class="quick-roll-buttons">
+                            <button onclick="console.log('TEST BUTTON CLICKED'); window.testQuickRoll('1d20')" title="TEST" style="background: red;">TEST</button>
+                            <button onclick="game.quickRoll('1d20')" title="d20">d20</button>
+                            <button onclick="game.quickRoll('2d20kh1')" title="Advantage">Adv</button>
+                            <button onclick="game.quickRoll('2d20kl1')" title="Disadvantage">Dis</button>
+                            <button onclick="game.quickRoll('1d12')" title="d12">d12</button>
+                            <button onclick="game.quickRoll('1d10')" title="d10">d10</button>
+                            <button onclick="game.quickRoll('1d8')" title="d8">d8</button>
+                            <button onclick="game.quickRoll('1d6')" title="d6">d6</button>
+                            <button onclick="game.quickRoll('1d4')" title="d4">d4</button>
+                            <button onclick="game.quickRoll('1d100')" title="Percentile">d100</button>
+                        </div>
+                    </div>
+                </div>
             </main>
+            
+            <aside class="roll-sidebar">
+                <div class="panel-header">
+                    <button class="panel-collapse-btn" id="rollsCollapseBtn" title="Collapse/Expand Roll History">▶</button>
+                </div>
+                <div class="panel-content" id="rollsContent">
+                    <div class="roll-header">
+                        <h3>Roll History</h3>
+                        <button id="clearRolls" class="btn-clear-rolls" title="Clear history">Clear</button>
+                    </div>
+                    <div class="roll-history" id="rollHistory"></div>
+                    <div class="macros-section">
+                        <h4>Macros</h4>
+                        <div class="macros-list" id="macrosList">
+                            <!-- Macros will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+    
+    <!-- Macro Configuration Modal -->
+    <div id="macroModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Configure Macros</h2>
+                <button class="modal-close" onclick="game.closeMacroModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="macro-add-section">
+                    <h3>Add New Macro</h3>
+                    <div class="macro-form">
+                        <input type="text" id="macroName" placeholder="Macro Name (e.g., Attack)" maxlength="20">
+                        <input type="text" id="macroFormula" placeholder="Roll Formula (e.g., 1d20+5)" maxlength="50">
+                        <input type="text" id="macroDescription" placeholder="Description (optional)" maxlength="100">
+                        <button onclick="game.addMacro()">Add Macro</button>
+                    </div>
+                </div>
+                <div class="macro-list-section">
+                    <h3>Your Macros</h3>
+                    <div id="macroConfigList" class="macro-config-list">
+                        <!-- Macros will be listed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Character Sheet Modal -->
+    <div id="characterSheetModal" class="modal" style="display: none;">
+        <div class="modal-content character-sheet-modal">
+            <div class="modal-header">
+                <h2 id="characterSheetTitle">D&D 5e Character Sheet</h2>
+                <button class="modal-close" onclick="game.closeCharacterSheetModal()">&times;</button>
+            </div>
+            <div class="modal-body character-sheet-body">
+                <!-- Character Sheet will be dynamically loaded here -->
+                <div id="characterSheetContent">
+                    Loading character sheet...
+                </div>
+            </div>
         </div>
     </div>
     
